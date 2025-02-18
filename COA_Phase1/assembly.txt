@@ -1,0 +1,11 @@
+
+    # Example instructions
+    add x1, x0, x0   # x1 = x0 + x0 (x1 = 0)
+    addi x2, x0, 5   # x2 = x0 + 5 (x2 = 5)
+    sub x3, x2, x1   # x3 = x2 - x1 (x3 = 5)
+    sw x2, 0(x0)     # Store x2 (5) at memory address 0
+    lw x4, 0(x0)     # Load value at memory address 0 into x4 (x4 = 5)
+    bne x4, x2, end  # If x4 != x2, jump to end
+    addi x5, x0, 10  # x5 = x0 + 10 (x5 = 10)
+end:
+    jal x0, end      # Infinite loop
