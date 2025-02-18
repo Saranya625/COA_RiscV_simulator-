@@ -145,8 +145,6 @@ void runSimulator(const string &filename) {
         cout << endl;
     }
 
-    // Print Memory
-    cout << "\n=== Memory after execution ===\n";
     for (int addr = 0; addr < MEMORY_SIZE; addr += 4) { 
         cout << "0x" << hex << addr << ": " << dec << *(int*)(memory + addr) << "\t";
         if ((addr / 4 + 1) % 8 == 0) cout << endl;  // Print 8 values per line
