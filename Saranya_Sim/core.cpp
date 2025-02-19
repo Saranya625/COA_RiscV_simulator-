@@ -11,7 +11,7 @@ public:
     int registers[REGISTERS] = {0};  // Registers
     const int core_id;               // Core ID
     int pc = 0;                      // Program counter
-    std::set<int> visited_pcs;       // Track visited instructions
+    std::unordered_map<int,int> visited_pcs;       // Track visited instructions
 
     Core(int id) : core_id(id) {
         registers[0] = 0;  
