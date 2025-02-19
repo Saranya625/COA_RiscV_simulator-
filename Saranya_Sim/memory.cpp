@@ -6,13 +6,6 @@
 #define REGISTER_COUNT 32  // 32 registers
 uint8_t memory[MEMORY_SIZE] = {0}; 
 int registers[REGISTER_COUNT] = {0};
-void assignRandomAddresses() {
-    std::srand(std::time(nullptr)); 
-
-    for (int i = 0; i < REGISTER_COUNT; i++) {
-        registers[i] = (std::rand() % (MEMORY_SIZE / 4)) * 4;
-    }
-}
 void printRegisters_memory() {
     std::cout << "\n=== Register State ===\n";
     for (int i = 0; i < REGISTER_COUNT; i++) {
