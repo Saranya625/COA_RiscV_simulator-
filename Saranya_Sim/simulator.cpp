@@ -7,8 +7,8 @@
 #include <algorithm>
 using namespace std;
 
-std::unordered_map<std::string, int> label_map;  // Labels and their addresses
-std::vector<std::pair<std::string, std::vector<std::string>>> instructions;  // Instructions
+std::unordered_map<std::string, int> label_map;  
+std::vector<std::pair<std::string, std::vector<std::string>>> instructions;  
 
 void parseAssembly(const std::string &filename) {
     std::ifstream file(filename);
@@ -20,7 +20,7 @@ void parseAssembly(const std::string &filename) {
     std::string line;
     bool inTextSection = false;
     bool inDataSection = false;
-    int memoryAddress = 0x1000;  // Start memory for data section
+    int memoryAddress = 0x0010;  
 
     while (std::getline(file, line)) {
         // Remove comments
@@ -32,7 +32,6 @@ void parseAssembly(const std::string &filename) {
         std::string first, instr;
         iss >> first;
 
-        // Section handling
         if (first == ".data") {
             inTextSection = false;
             inDataSection = true;
@@ -97,16 +96,18 @@ void parseAssembly(const std::string &filename) {
         }
     }
 }
+
 void executeProgram(Core &core) {
     while (core.pc < instructions.size()) {
         auto &instruction = instructions[core.pc];
         const std::string &instr = instruction.first;
         const std::vector<std::string> &args = instruction.second;
-        if (core.visited_pcs.find(core.pc) != core.visited_pcs.end()) {
-            std::cout << " Infinite loop detected at PC " << core.pc << " on core " << core.core_id << "\n";
+        core.visited_pcs[core.pc]++;  
+        if (core.visited_pcs[core.pc] > 1000) {  // Change 1000 to a reasonable value
+            std::cout << "Infinite loop detected at PC " << core.pc << " on core " << core.core_id << "\n";
             break;
         }
-        core.visited_pcs.insert(core.pc);
+        //core.visited_pcs.insert(core.pc);
 
         try {
              cout << "executed instruction "<< instr << endl;   
@@ -116,15 +117,39 @@ void executeProgram(Core &core) {
             } else if (instr == "sub") {
                 core.registers[core.getRegisterIndex(args[0])] =
                     core.registers[core.getRegisterIndex(args[1])] - core.registers[core.getRegisterIndex(args[2])];
-            } else if (instr == "bne") {
-                if (core.registers[core.getRegisterIndex(args[0])] != core.registers[core.getRegisterIndex(args[1])]) {
-                    core.pc = label_map[args[2]];
-                    continue;
+            } 
+            else if (instr == "bne") {
+                int rs1 = core.getRegisterIndex(args[0]);
+                int rs2 = core.getRegisterIndex(args[1]);
+            
+                std::cout << "bne Debug: x" << rs1 << " = " << core.registers[rs1]
+                          << ", x" << rs2 << " = " << core.registers[rs2] << std::endl;
+            
+                if (core.registers[rs1] != core.registers[rs2]) {
+                    if (label_map.find(args[2]) != label_map.end()) {
+                        std::cout << "Branching to " << args[2] << " at PC = " << label_map[args[2]] << std::endl;
+                        core.pc = label_map[args[2]];  // Jump to correct label
+                        continue;  // Prevent pc++ after branching
+                    } else {
+                        std::cerr << "Error: Label not found: " << args[2] << std::endl;
+                        exit(1);
+                    }
                 }
-            } else if (instr == "jal") {
+            }
+        
+             else if (instr == "jal") {
                 core.pc = label_map[args[1]];
                 continue;
             } 
+            else if (instr == "j") {
+                if (label_map.find(args[0]) != label_map.end()) {
+                    core.pc = label_map[args[0]];  // Jump to label
+                    continue;
+                } else {
+                    std::cerr << "Error: Label not found: " << args[0] << std::endl;
+                    exit(1);
+                }
+            }
             
             else if (instr == "lw") {
                 int rd = core.getRegisterIndex(args[0]);  // Destination register
@@ -176,15 +201,48 @@ void executeProgram(Core &core) {
                 cout<< "imm: " << imm << endl;            
                core.registers[rd] = core.registers[rs1] + imm;
             }
-           else if (instr == "la") {
-                // la x1, arr -> Load address of arr into x1
+            else if (instr == "la") {
                 if (label_map.find(args[1]) != label_map.end()) {
-                    core.registers[core.getRegisterIndex(args[0])] = label_map[args[1]];
+                    int address = label_map[args[1]];
+                    core.registers[core.getRegisterIndex(args[0])] = address;
+                    std::cout << "Loaded address of " << args[1] << " (" << address << ") into " << args[0] << std::endl;
                 } else {
                     std::cerr << "Error: Label not found: " << args[1] << std::endl;
                     exit(1);
                 }
-            }  
+            }
+            else if (instr == "beq") {
+                int rs1 = core.getRegisterIndex(args[0]);
+                int rs2 = core.getRegisterIndex(args[1]);
+            
+                cout << "Checking beq: rs1=" << core.registers[rs1]
+                     << ", rs2=" << core.registers[rs2] << endl;
+            
+                if (core.registers[rs1] == core.registers[rs2]) {
+                    if (label_map.find(args[2]) != label_map.end()) {
+                        core.pc = label_map[args[2]];  // Jump to label if rs1 == rs2
+                        continue;
+                    } else {
+                        cerr << "Error: Label not found: " << args[2] << endl;
+                        exit(1);
+                    }
+                }
+            }
+            
+            else if (instr == "li") {
+                int rd = core.getRegisterIndex(args[0]);
+                int imm = std::stoi(args[1]);
+                core.registers[rd] = imm;
+            }
+            else if (instr == "ecall") {
+                if (core.registers[17] == 10) {  // a7 = 10 for exit syscall
+                    std::cout << "Exit syscall detected. Terminating program." << std::endl;
+                    break;
+                }
+            }
+            else if ( instr == "nop") {
+                
+            }
               
             else {
                 std::cout << "Unknown instruction: " << instr << std::endl;
@@ -200,10 +258,9 @@ int main() {
     std::vector<Core> cores;
     cout << "Simulator started!" << endl;
     for (int i = 0; i < 4; i++) cores.emplace_back(i);
-    assignRandomAddresses();
     cout<< "intial" << endl;
-    printRegisters_memory();
-    parseAssembly("assembly.txt");
+    //printRegisters_memory();
+    parseAssembly("assembly.asm");
     cout << "Reading assembly file..." << endl;
     for (Core &core : cores) executeProgram(core);
     for (Core &core : cores) core.printRegisters();
