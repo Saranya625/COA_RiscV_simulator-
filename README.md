@@ -1,3 +1,44 @@
+# RISC-V Simulator
+
+This **RISC-V Simulator** is designed to execute assembly programs using a **multi-core architecture**. It supports **4 cores**, each with its own dedicated **1KB memory segment**. The simulator reads assembly instructions from a file, processes them, and executes them sequentially.  
+
+## Implemented RISC-V Instructions
+The following **RISC-V instructions** are implemented in this simulator:
+
+### 1. Arithmetic Instructions
+- `add` - Adds two registers.
+- `sub` - Subtracts two registers.
+- `addi` - Adds an immediate value to a register.
+- `slli` - Shifts a register left by an immediate value.
+
+### 2. Branch and Jump Instructions
+- `bne` - Branch if registers are not equal.
+- `blt` - Branch if one register is less than another.
+- `beq` - Branch if registers are equal.
+- `jal` - Jump and link (function call).
+- `j` - Unconditional jump.
+
+### 3. Memory Access Instructions
+- `lw` - Load word (loads from memory into a register).
+- `sw` - Store word (stores a register value into memory).
+
+### 4. Data Transfer Instructions
+- `li` - Load an immediate value into a register.
+- `la` - Load the address of a label into a register.
+
+### 5. System Call Instruction
+- `ecall` - Used for system exit (if register `x17 == 10`, program terminates).
+
+### 6. No-Operation Instruction
+- `nop` - Does nothing (used for alignment or delays).
+
+---
+
+## Bubble Sort Implementation
+To demonstrate the functionality of our simulator, we have provided an **assembly file (`assembly.asm`)** containing **Bubble Sort**. This program sorts an array using the **implemented RISC-V instructions** and executes it within the simulator.
+
+After execution, the simulator prints the final register values and memory contents. 🚀
+
 # Minutes of Meeting - RISC-V Simulator Development  
 
 ## **February 20**  
