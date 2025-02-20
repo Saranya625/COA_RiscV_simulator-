@@ -1,8 +1,0 @@
-.data
-arr: .word 3 2 0 5 1
-.text 
-addi x1, x0, 5
-addi x2,x2,4
-la x2, arr
-lw x3,0(x2)
-lw x4,4(x2)
