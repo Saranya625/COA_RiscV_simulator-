@@ -3,7 +3,7 @@
 This **RISC-V Simulator** is designed to execute assembly programs using a **multi-core architecture**. It supports **4 cores**, each with its own dedicated **1KB memory segment**. The simulator reads assembly instructions from a file, processes them, and executes them sequentially.  
 
 ## Implemented RISC-V Instructions
-The following **RISC-V instructions** are implemented in this simulator:
+The following **RISC-V instructions** are implemented in our simulator:
 
 ### 1. Arithmetic Instructions
 - `add` - Adds two registers.
@@ -35,7 +35,7 @@ The following **RISC-V instructions** are implemented in this simulator:
 ---
 
 ## Bubble Sort Implementation
-To demonstrate the functionality of our simulator, we have provided an **assembly file (`assembly.asm`)** containing **Bubble Sort**. This program sorts an array using the **implemented RISC-V instructions** and executes it within the simulator.
+To demonstrate the functionality of our simulator, we have provided an **assembly file (`assembly.asm`)** containing **Bubble Sort**. This program sorts an array using the **implemented RISC-V instructions** and executes it within the simulator using the intructions in it.
 
 After execution, the simulator prints the final register values and memory contents. 🚀
 
