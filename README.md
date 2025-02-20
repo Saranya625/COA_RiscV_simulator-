@@ -8,14 +8,13 @@
 #### **Saranya (Final Fixes):**  
 - **Problem in memory allocation of cores:** All cores accessed the same memory.  
 - A basic swap function swapped the elements in the same address 4 times (took time to debug; initially thought it was an `sw` function error).
-
-#### **Binnu:**  
-- Compiled all the progress and key fixes into a structured **README file** for documentation.  
-
-#### **Major Issue Fixed:**  
+- **Major Issue Fixed:**  
 - Memory allocation for cores was incorrect—each core accessed the same memory, causing `sw` to overwrite the same address multiple times.  
 - Initially assumed this was an `sw` function error but later discovered the issue was due to improper memory segmentation.  
 - **Solution:** Implemented another structure called core memory and allocated distinct memory sections for each core.  
+#### **Binnu:**  
+- Compiled all the progress and key fixes into a structured **README file** for documentation.  
+
 - ✅ **Final Outcome:** The bubble sort program executed successfully!  
 
 ---
