@@ -7,7 +7,10 @@
 
 #### **Saranya (Final Fixes):**  
 - **Problem in memory allocation of cores:** All cores accessed the same memory.  
-- A basic swap function swapped the elements in the same address 4 times (took time to debug; initially thought it was an `sw` function error).  
+- A basic swap function swapped the elements in the same address 4 times (took time to debug; initially thought it was an `sw` function error).
+
+#### **Binnu:**  
+- Compiled all the progress and key fixes into a structured **README file** for documentation.  
 
 #### **Major Issue Fixed:**  
 - Memory allocation for cores was incorrect—each core accessed the same memory, causing `sw` to overwrite the same address multiple times.  
