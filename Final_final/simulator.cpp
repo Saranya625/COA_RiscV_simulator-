@@ -135,8 +135,31 @@ void parseAssembly(const std::string &filename , int core_id) {
                 instructions.emplace_back(instr, args);
             }
         }
+        else{
+            if (first.back() == ':') {
+                first.pop_back();  
+                label_map[first] = instructions.size();
+            } else {
+                instr = first;
+                std::vector<std::string> args;
+                std::string restOfLine;
+                std::getline(iss, restOfLine);  
+
+
+                std::istringstream argStream(restOfLine);
+                std::string token;
+                while (std::getline(argStream, token, ',')) {
+                    token.erase(0, token.find_first_not_of(" \t"));  
+                    token.erase(token.find_last_not_of(" \t") + 1);
+                    args.push_back(token);
+                }
+               
+                instructions.emplace_back(instr, args);
+            }
+            }
+        }
     }
-}
+
 
 
 void executeProgram(Core &core) {
@@ -242,18 +265,12 @@ void executeProgram(Core &core) {
                core.registers[rd] = core.registers[rs1] + imm;
             }
             else if (instr == "slli") {
-                int rd = core.getRegisterIndex(args[0]);  // Destination register
-                int rs1 = core.getRegisterIndex(args[1]); // Source register
-                int shamt = stoi(args[2]); // Shift amount (immediate value)
-            
-                // Debug output
+                int rd = core.getRegisterIndex(args[0]);  
+                int rs1 = core.getRegisterIndex(args[1]); 
+                int shamt = stoi(args[2]); 
                 std::cout << "slli Debug: x" << rd << " = x" << rs1 << " << " << shamt << std::endl;
                 std::cout << "Before shift: x" << rs1 << " = " << core.registers[rs1] << std::endl;
-            
-                // Perform logical shift left
                 core.registers[rd] = core.registers[rs1] << shamt;
-            
-                // Debug output after shift
                 std::cout << "After shift: x" << rd << " = " << core.registers[rd] << std::endl;
             }
             else if (instr == "blt") {
