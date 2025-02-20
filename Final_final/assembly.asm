@@ -37,4 +37,5 @@ next_outer:
 
 end:
     ecall
+#bubble_sort code with functions written in the simulator 
 
