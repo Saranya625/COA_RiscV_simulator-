@@ -2,7 +2,7 @@
 #include <vector>
 #include <unordered_map>
 #include "memory.cpp"
-
+using namespace std;
 
 #define CORE_COUNT 4
 #define REGISTER_COUNT 32
@@ -13,33 +13,51 @@ struct PipelineStage {
     std::vector<std::string> args;
     int result;
     int rs1, rs2, rd;
-    bool valid;
+    int rs1_value= 0,rs2_value= 0,rd_value=0;
+    int offset;
+    int address;
+    bool valid_instruction;
+    bool valid_data;
     bool hazard_detected;
-    bool hazard_from_EX;
-    bool hazard_from_MEM;
-    PipelineStage() : valid(false), result(0), rs1(0), rs2(0), rd(0),
-    hazard_detected(false), hazard_from_EX(false), hazard_from_MEM(false) {}
+    bool stalled;
+
+    PipelineStage() : valid_instruction(false),valid_data(false), result(0), rs1(0), rs2(0), rd(0),
+    hazard_detected(false),stalled(false){}
 };
 
 
 class Pipeline {
 public:
-    PipelineStage stages[5]; 
-
+    PipelineStage IF_ID; 
+    PipelineStage ID_EX;
+    PipelineStage EX_MEM;
+    PipelineStage MEM_WB;
+    PipelineStage WB_Return;
     void shiftStages() {
-        for (int i = 4; i > 0; i--) {
-            stages[i] = stages[i - 1];
+        Pipeline pipeline_temp;
+        if(!pipeline_temp.WB_Return.stalled){
+            WB_Return = MEM_WB;
         }
-        stages[0].valid = false; 
-        std::cout << "[Pipeline] Shifted stages\n";
+       if(!pipeline_temp.MEM_WB.stalled){
+        MEM_WB = EX_MEM;
+       }
+       if(!pipeline_temp.EX_MEM.stalled){
+        EX_MEM = ID_EX;
+       }
+       if(!pipeline_temp.ID_EX.stalled){
+        ID_EX = IF_ID;
+       }
+        IF_ID = PipelineStage();  
+        IF_ID.valid_instruction = false;
+        IF_ID.valid_data = false;
     }
+
+
+    
+    
+    
 };
-struct HazardInfo {
-    bool hazard_detected;
-    bool from_EX;
-    bool from_MEM;
-    int dependency_reg;
-} hazard_info;
+
 
 class Core {
 public:
@@ -57,11 +75,6 @@ public:
     int latest_ex_rd;
     int hazard_in_id = 0;
     int hazard_in_ex= 0;
-    bool stall_flag = false;
-    bool hazard_in_sw = false;
-    bool hazard_in_lw = false;
-    int new_rs1_value_sw ;
-    int new_rd_value_sw;
 
     Core(int id, std::unordered_map<std::string, int> &labels, bool forwarding) : core_id(id), label_map(labels), enable_forwarding(forwarding){
         registers[0]=0;
@@ -78,193 +91,201 @@ public:
 
     void fetchInstruction(const std::vector<std::pair<std::string, std::vector<std::string>>> &instructions) {
         if (pc < instructions.size()) {
-            pipeline.stages[0].instruction = instructions[pc].first;
-            pipeline.stages[0].args = instructions[pc].second;
-            pipeline.stages[0].valid = true;
-            std::cout << "[Core " << core_id << "] Fetched instruction: " << pipeline.stages[0].instruction << "\n";
+            pipeline.IF_ID.instruction = instructions[pc].first;
+            pipeline.IF_ID.args = instructions[pc].second;
+            pipeline.IF_ID.valid_instruction = true;
+            pipeline.IF_ID.valid_data = false;
+            std::cout << "[Core " << core_id << "] Fetched instruction: " << pipeline.IF_ID.instruction << "\n";
             pc++;
         } else {
-            pipeline.stages[0].valid = false;
+            pipeline.IF_ID.valid_instruction = false;
             std::cout << "[Core " << core_id << "] No more instructions to fetch\n";
         }
     }
+    
 
     void decodeInstruction() {
+        if(!pipeline.ID_EX.valid_instruction) return;
         hazard_in_id=0;
-        if (pipeline.stages[1].valid) {
-            auto &instr = pipeline.stages[1].instruction;
-            auto &args = pipeline.stages[1].args;
+        pipeline.ID_EX.valid_instruction = true;
+            auto &instr = pipeline.ID_EX.instruction;
+            auto &args = pipeline.ID_EX.args;
+            cout<<"[core "<<core_id<<"] Decoding instruction: "<<instr<<endl;
             if (instr == "add" || instr == "sub" || instr == "and" || instr == "or" || instr == "xor") {
-                pipeline.stages[1].rd = getRegisterIndex(args[0]);  
-                pipeline.stages[1].rs1 = getRegisterIndex(args[1]); 
-                pipeline.stages[1].rs2 = getRegisterIndex(args[2]); 
+                pipeline.ID_EX.rd = getRegisterIndex(args[0]);  
+                pipeline.ID_EX.rs1 = getRegisterIndex(args[1]); 
+                pipeline.ID_EX.rs2 = getRegisterIndex(args[2]); 
+               pipeline.ID_EX.rs1_value=registers[pipeline.ID_EX.rs1];
+                pipeline.ID_EX.rs2_value=registers[pipeline.ID_EX.rs2];
+                //from ex/mem to id/ex
+                if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs1) {
+                    std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS1: x" 
+                              << pipeline.ID_EX.rs1 << ")value forwarded :" <<pipeline.EX_MEM.rd_value << endl;
+                    pipeline.ID_EX.rs1_value = pipeline.EX_MEM.rd_value;
+                    hazard_in_id++;
+                }
+                if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs2) {
+                    std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS2: x" 
+                              << pipeline.ID_EX.rs2 << ")\n";
+                    pipeline.ID_EX.rs2_value = pipeline.EX_MEM.rd_value;
+                    hazard_in_id++;
+            }
+            //from mem/wb to id/ex
+            if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs1) {
+                std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS1: x" 
+                          << pipeline.ID_EX.rs1 << ")value forwarded :" <<pipeline.MEM_WB.rd_value << endl;
+                pipeline.ID_EX.rs1_value = pipeline.MEM_WB.rd_value;
+                hazard_in_id++;
+            }
+            if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs2) {
+                std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS2: x" 
+                          << pipeline.ID_EX.rs2 << ")\n";
+                pipeline.ID_EX.rs2_value = pipeline.MEM_WB.rd_value;
+                hazard_in_id++;
+        }
+          std::cout << "[Core " << core_id << "] Decoded instruction: " << instr
+            << " | RD: " << pipeline.ID_EX.rd
+            << " | RS1: " << pipeline.ID_EX.rs1
+            << " | RS2: " << pipeline.ID_EX.rs2 << "\n";
             } 
+        //////////////////////////////////////////////////////////////////////////
             else if (instr == "addi" || instr == "slli" || instr == "srli" || instr == "andi" || instr == "ori" || instr == "xori") {
-                pipeline.stages[1].rd = getRegisterIndex(args[0]);  
-                pipeline.stages[1].rs1 = getRegisterIndex(args[1]); 
-                pipeline.stages[1].rs2 = std::stoi(args[2]);  
+                pipeline.ID_EX.rd = getRegisterIndex(args[0]);  
+                pipeline.ID_EX.rs1 = getRegisterIndex(args[1]); 
+                pipeline.ID_EX.offset = std::stoi(args[2]);  
+                //from ex/mem to id/ex
+                if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs1) {
+                    std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS1: x" 
+                              << pipeline.ID_EX.rs1 << ")\n"<<"value forwarded :" <<pipeline.EX_MEM.rd_value;
+                    pipeline.ID_EX.rs1_value = pipeline.EX_MEM.rd_value;
+                    hazard_in_id++;
+                }
+                //from mem/wb to id/ex
+                if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs1) {
+                    std::cout << "[Core " << core_id << "] Forwarding from MEM/WB to ID/EX (RS1: x" 
+                              << pipeline.ID_EX.rs1 << ")\n"<<"value forwarded :" <<pipeline.MEM_WB.rd_value;
+                    pipeline.ID_EX.rs1_value = pipeline.MEM_WB.rd_value;
+                    hazard_in_id++;
+                }
+                std::cout << "[Core " << core_id << "] Decoded instruction: " << instr
+                << " | RD: " << pipeline.ID_EX.rd
+                << " | RS1: " << pipeline.ID_EX.rs1
+                << " | Offset: " << pipeline.ID_EX.offset << "\n";
             } 
 
             else if (instr == "lw") {
-                pipeline.stages[1].rd = getRegisterIndex(args[0]);  
-                std::string baseReg = args[1].substr(args[1].find('(') + 1, args[1].find(')') - args[1].find('(') - 1);
-                pipeline.stages[1].rs1 = getRegisterIndex(baseReg); 
-                pipeline.stages[1].rs2 = -1; 
+                int baseRegIndex = getRegisterIndex(args[1].substr(args[1].find('(') + 1, args[1].find(')') - args[1].find('(') - 1));
+                pipeline.ID_EX.offset = std::stoi(args[1].substr(0, args[1].find('(')));
+                pipeline.ID_EX.rs1 = baseRegIndex;
+                pipeline.ID_EX.rs1_value=registers[pipeline.ID_EX.rs1];
+                pipeline.ID_EX.address = pipeline.ID_EX.rs1_value + pipeline.ID_EX.offset; 
+                pipeline.ID_EX.rd = getRegisterIndex(args[0]);  
+                cout<< "rd " << pipeline.ID_EX.rd<< " offset: " << pipeline.ID_EX.offset<<" rs1: "<<pipeline.ID_EX.rs1 << endl;               
+
+                //ex/mem to id/ex
+                if (pipeline.EX_MEM.valid_instruction && (pipeline.EX_MEM.rd == pipeline.ID_EX.rs1 && pipeline.EX_MEM.instruction != "sw") ){
+                    std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS1: x" 
+                              << pipeline.ID_EX.rs1 << ")\n";
+                    pipeline.ID_EX.rs1_value = pipeline.EX_MEM.rd_value;
+                    hazard_in_id++;
+                }
+                pipeline.ID_EX.address = pipeline.ID_EX.rs1_value + pipeline.ID_EX.offset;  
+                if(pipeline.EX_MEM.valid_instruction && (pipeline.EX_MEM.address == pipeline.ID_EX.address && pipeline.EX_MEM.instruction == "sw")){
+                 stalls++;
+                 cout<<"Stalling in ID"<<endl;
+                }
+                //mem/wb to id/ex
+                if (pipeline.MEM_WB.valid_instruction && (pipeline.MEM_WB.rd == pipeline.ID_EX.rs1 && pipeline.MEM_WB.instruction != "sw") ){
+                    std::cout << "[Core " << core_id << "] Forwarding from MEM/WB to ID/EX (RS1: x" 
+                              << pipeline.ID_EX.rs1 << ")\n";
+                    pipeline.ID_EX.rs1_value = pipeline.MEM_WB.rd_value;
+                    hazard_in_id++;
+                }
+                pipeline.ID_EX.address = pipeline.ID_EX.rs1_value + pipeline.ID_EX.offset;  
+                if(pipeline.MEM_WB.valid_instruction && (pipeline.MEM_WB.address == pipeline.ID_EX.address && pipeline.MEM_WB.instruction == "sw")){
+                    stalls++;
+                 cout<<"Stalling in ID"<<endl;
+                }
+
+                pipeline.ID_EX.address = pipeline.ID_EX.rs1_value+ pipeline.ID_EX.offset;
             } 
 
             else if (instr == "sw") {
-                pipeline.stages[1].rs1 = getRegisterIndex(args[0]);
-                std::string baseReg = args[1].substr(args[1].find('(') + 1, args[1].find(')') - args[1].find('(') - 1);
-                pipeline.stages[1].rd = getRegisterIndex(baseReg);                 
-                pipeline.stages[1].rs2 = -1; 
+                int baseRegIndex = getRegisterIndex(args[1].substr(args[1].find('(') + 1, args[1].find(')') - args[1].find('(') - 1));
+                pipeline.ID_EX.offset = std::stoi(args[1].substr(0, args[1].find('(')));            
+                pipeline.ID_EX.rd = baseRegIndex;  
+                pipeline.ID_EX.rd_value=registers[baseRegIndex];
+                cout<< "rd: " << pipeline.ID_EX.rd << " offset: " << pipeline.ID_EX.offset << endl;
+                pipeline.ID_EX.address = pipeline.ID_EX.rd_value + pipeline.ID_EX.offset; 
+                pipeline.ID_EX.rs1 = getRegisterIndex(args[0]); 
+                cout<< "rs1:"<<pipeline.ID_EX.rs1 << endl;
+                //ex/mem to id/ex
+                if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs1) {
+                    std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS1: x" 
+                              << pipeline.ID_EX.rs1 << ")\n";
+                    pipeline.ID_EX.rs1_value = pipeline.EX_MEM.rd_value;
+                    hazard_in_id++;
+                    cout<<"Value forwarded:"<<pipeline.ID_EX.rs1_value<<endl;
+                }
+                //mem/wb to id/ex
+                if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs1) {
+                    std::cout << "[Core " << core_id << "] Forwarding from MEM/WB to ID/EX (RS1: x" 
+                              << pipeline.ID_EX.rs1 << ")\n";
+                    pipeline.ID_EX.rs1_value = pipeline.MEM_WB.rd_value;
+                    hazard_in_id++;
+                    cout<<"Value forwarded:"<<pipeline.ID_EX.rs1_value<<endl;
+                }
+                pipeline.ID_EX.address = pipeline.ID_EX.rd_value + pipeline.ID_EX.offset;  
+                cout<<"address"<< pipeline.ID_EX.address<<endl;
+                
             } 
 
             else if (instr == "beq" || instr == "bne" || instr == "blt" || instr == "bge") {
-                pipeline.stages[1].rs1 = getRegisterIndex(args[0]); 
-                pipeline.stages[1].rs2 = getRegisterIndex(args[1]); 
-                pipeline.stages[1].rd = std::stoi(args[2]);
+                pipeline.ID_EX.rs1 = getRegisterIndex(args[0]); 
+                pipeline.ID_EX.rs2 = getRegisterIndex(args[1]); 
+                pipeline.ID_EX.rd = std::stoi(args[2]);
             }
 
             else if (instr == "jal" || instr == "j") {
-                pipeline.stages[1].rd = getRegisterIndex(args[0]);  
-                pipeline.stages[1].rs1 = -1;
-                pipeline.stages[1].rs2 = -1;
+                pipeline.ID_EX.rd = getRegisterIndex(args[0]);  
+                pipeline.ID_EX.rs1 = -1;
+                pipeline.ID_EX.rs2 = -1;
             }
-            std::cout << "[Core " << core_id << "] Decoded instruction: " << instr
-                      << " | RD: " << pipeline.stages[1].rd
-                      << " | RS1: " << pipeline.stages[1].rs1
-                      << " | RS2: " << pipeline.stages[1].rs2 << "\n";
-        }
-        int ex_rd = pipeline.stages[2].rd;
-        int mem_rd = pipeline.stages[3].rd;
 
-        if (ex_rd != 0 && (ex_rd == pipeline.stages[1].rs1 || ex_rd == pipeline.stages[1].rs2)) {
-            pipeline.stages[1].hazard_detected = true;
-            pipeline.stages[1].hazard_from_EX = true;
-            hazard_in_id++;
-        }
-        if (mem_rd != 0 && (mem_rd ==  pipeline.stages[1].rs1 || mem_rd ==  pipeline.stages[1].rs2)) {
-            pipeline.stages[1].hazard_detected = true;
-            pipeline.stages[1].hazard_from_MEM = true;
-            hazard_in_id++;
-        }
-         cout<< "hazard in id :" << hazard_in_id<<endl;
-    }
+    pipeline.ID_EX.valid_data = true;
+}
     
 
     void executeStage() {
-        if (pipeline.stages[2].valid) {
-            auto &instr = pipeline.stages[2].instruction;
-            auto &args = pipeline.stages[2].args;
-    
-            int rs1_val = registers[pipeline.stages[2].rs1];
-             int rs2_val = registers[pipeline.stages[2].rs2];
-
-            if(hazard_in_ex!=0 && (instr != "lw" && instr != "sw")){
-                cout<<"deteced hazard in ex " <<endl;
-                    if (enable_forwarding) { 
-                            if (pipeline.stages[2].rs1 == pipeline.stages[4].rd) {
-                                rs1_val = pipeline.stages[4].result;
-                                std::cout << "[Core " << core_id << "] Forwarding x" << pipeline.stages[2].rs1 
-                                << " from MEM stage: " <<pipeline.stages[4].result<< "\n";
-  
-                            }
-                            if (pipeline.stages[2].rs2 == pipeline.stages[4].rd) {
-                                rs2_val = pipeline.stages[4].result;
-                                std::cout << "[Core " << core_id << "] Forwarding x" << pipeline.stages[2].rs2 
-                                << " from MEM stage: " << pipeline.stages[4].result<< "\n";
-  
-                            }
-                            if (pipeline.stages[2].rs1 == pipeline.stages[3].rd) {
-                                rs1_val = pipeline.stages[3].result;
-                                std::cout << "[Core " << core_id << "] Forwarding x" << pipeline.stages[3].rd 
-                                      << " from EX computed register: " << pipeline.stages[3].result << "\n";
-        
-                            }
-                            if (pipeline.stages[2].rs2 == pipeline.stages[3].rd) {
-                                rs2_val = pipeline.stages[3].result;
-                                std::cout << "[Core " << core_id << "] Forwarding x" << pipeline.stages[3].rd 
-                                      << " from EX computed stage: " << pipeline.stages[3].result << "\n";
-                               }
-                     hazard_in_ex =0;
-                       cout<<"reset hazard_in_ex:"<<hazard_in_ex<<endl;
-                    }
-                    else {  
-                        cout<<"inserting stall"<<endl;
-                        handleStalls();
-                        hazard_in_ex =0;
-                        cout<<"reset hazard_in_ex"<<hazard_in_ex<<endl;
-                     }
-            
-            }      
+        if (!pipeline.EX_MEM.valid_instruction) return ;
+            auto &instr = pipeline.EX_MEM.instruction;
+            auto &args = pipeline.EX_MEM.args;
+            pipeline.EX_MEM.valid_instruction = true;
+            int rs1_val = pipeline.EX_MEM.rs1_value;
+            int rs2_val = pipeline.EX_MEM.rs2_value; 
+            int imm = pipeline.EX_MEM.offset;     
+            int adress = pipeline.EX_MEM.address;  
+            int rd = pipeline.EX_MEM.rd;
             std::cout << "[Core " << core_id << "] Executing instruction: " << instr << "\n";
             if (instr == "add") {
-                pipeline.stages[2].result = rs1_val + rs2_val;
+                pipeline.EX_MEM.rd_value = rs1_val + rs2_val;
             } else if (instr == "sub") {
-                pipeline.stages[2].result = rs1_val - rs2_val;
+                pipeline.EX_MEM.rd_value = rs1_val - rs2_val;
             } else if (instr == "addi") {
-                int imm = std::stoi(args[2]);
-                pipeline.stages[2].result = rs1_val + imm;
+                pipeline.EX_MEM.rd_value = rs1_val + imm;
             } else if (instr == "slli") {
-                pipeline.stages[2].result = rs1_val << std::stoi(args[2]);
+                pipeline.EX_MEM.rd_value = rs1_val << imm;
             } else if (instr == "lw") {
-                int baseRegIndex = getRegisterIndex(args[1].substr(args[1].find('(') + 1, args[1].find(')') - args[1].find('(') - 1));
-                int offset = std::stoi(args[1].substr(0, args[1].find('(')));
-                pipeline.stages[2].rs1 = baseRegIndex;  
-                cout<< "baseRegIndex: " << baseRegIndex << " offset: " << offset << endl;
-                pipeline.stages[2].result = registers[baseRegIndex] + offset;  // Compute memory address
-                pipeline.stages[2].rd = getRegisterIndex(args[0]); // Store source register index
-            } else if (instr == "sw") {
-                int baseRegIndex = getRegisterIndex(args[1].substr(args[1].find('(') + 1, args[1].find(')') - args[1].find('(') - 1));
-                int offset = std::stoi(args[1].substr(0, args[1].find('(')));
-            
-                pipeline.stages[2].rd = baseRegIndex;  
-                cout<< "baseRegIndex: " << baseRegIndex << " offset: " << offset << endl;
-                pipeline.stages[2].result = registers[baseRegIndex] + offset;  // Compute memory address
-                pipeline.stages[2].rs1 = getRegisterIndex(args[0]); // Store source register index
-
-                if(hazard_in_ex==1){
-                    cout<<"deteced hazard in ex " <<endl;
-                        if (enable_forwarding) { 
-                                if (pipeline.stages[2].rd == pipeline.stages[4].rd) {
-                                    pipeline.stages[2].result = pipeline.stages[4].result+ offset;
-                                    std::cout << "[Core " << core_id << "] Forwarding x" << pipeline.stages[2].rd 
-                                    << " from MEM stage: " <<pipeline.stages[4].result<< "\n";
-      
-                                }
-                                if (pipeline.stages[2].rs2 == pipeline.stages[4].rd) {
-                                    rs2_val = pipeline.stages[4].result;
-                                    std::cout << "[Core " << core_id << "] Forwarding x" << pipeline.stages[2].rs2 
-                                    << " from MEM stage: " << pipeline.stages[4].result<< "\n";
-      
-                                }
-                                if (pipeline.stages[2].rs1 == pipeline.stages[3].rd) {
-                                    rs1_val = pipeline.stages[3].result;
-                                    std::cout << "[Core " << core_id << "] Forwarding x" << pipeline.stages[3].rd 
-                                          << " from EX computed register: " << pipeline.stages[3].result << "\n";
-            
-                                }
-                                if (pipeline.stages[2].rs2 == pipeline.stages[3].rd) {
-                                    rs2_val = pipeline.stages[3].result;
-                                    std::cout << "[Core " << core_id << "] Forwarding x" << pipeline.stages[3].rd 
-                                          << " from EX computed stage: " << pipeline.stages[3].result << "\n";
-                                   }
-                         hazard_in_ex =0;
-                           cout<<"reset hazard_in_ex:"<<hazard_in_ex<<endl;
-                        }
-                        else {  
-                            cout<<"inserting stall"<<endl;
-                            handleStalls();
-                            hazard_in_ex =0;
-                            cout<<"reset hazard_in_ex"<<hazard_in_ex<<endl;
-                         }
-                
-                }            
-                std::cout << "[Core " << core_id << "] SW Computed Address: " 
-                          << pipeline.stages[2].result << " Storing Value: " 
-                          << rs1_val << "\n";
-                          new_rs1_value_sw = rs1_val;
-                          new_rd_value_sw = pipeline.stages[2].result;
+              if (pipeline.MEM_WB.valid_instruction && (pipeline.MEM_WB.address == pipeline.EX_MEM.address && pipeline.MEM_WB.instruction=="sw")) {
+                std::cout << "[Core " << core_id << "] Forwarding from MEM/WB to EX/MEM (RS1: x" 
+                          << pipeline.EX_MEM.rs1 << "value forwarded:"<< pipeline.MEM_WB.rd_value<<")\n";
+                pipeline.EX_MEM.rd_value = pipeline.MEM_WB.rs1_value;
+                hazard_in_id++;
+            }
+            pipeline.EX_MEM.address = pipeline.EX_MEM.rs1_value + pipeline.EX_MEM.offset;  
+            }
+            else if (instr == "sw") {
+               
             }
             
             
@@ -286,53 +307,59 @@ public:
                 registers[getRegisterIndex(args[0])] = pc;
                 pc = label_map[args[1]];
             } else if (instr == "li") {
-                pipeline.stages[2].result = std::stoi(args[1]);
+                pipeline.EX_MEM.rd_value = std::stoi(args[1]);
             } else if (instr == "la") {
-                pipeline.stages[2].result = label_map[args[1]];
-            } else if (instr == "ecall") {
+                pipeline.EX_MEM.rd_value = label_map[args[1]];
+            }else if (instr == "ecall") {
                 if (registers[17] == 10) {
                     std::cout << "[Core " << core_id << "] Exit syscall detected. Terminating program.\n";
                     exit(0);
                 }
             }
-        latest_ex_result = pipeline.stages[2].result;
-        cout << "Latest_ex_result:"<<latest_ex_result<<endl;
-        latest_ex_rd = pipeline.stages[2].rd;
-           if(hazard_in_id!=0){
+        latest_ex_result = pipeline.EX_MEM.rd_value;
+        cout << "Latest_ex_rd_value:"<<latest_ex_result<<endl;
+        latest_ex_rd = pipeline.EX_MEM.rd;
+        if(hazard_in_id!=0){
             hazard_in_ex++;
             cout << "Since hazard in id, incrementing hazard_in_ex: "<<hazard_in_ex<<endl;
            }
-        }
+        pipeline.EX_MEM.valid_data = true;
     }
 
     void memoryStage() {
-        std::cout << "[Core " << core_id << "] Memory stage for instruction: " << pipeline.stages[3].instruction << "\n";
-        if (pipeline.stages[3].valid) {
-            auto &instr = pipeline.stages[3].instruction;
-            auto &args = pipeline.stages[3].args;
+        
+        if (!pipeline.MEM_WB.valid_instruction) return;
+        std::cout << "[Core " << core_id << "] Memory stage for instruction: " << pipeline.MEM_WB.instruction << "\n";
+            auto &instr = pipeline.MEM_WB.instruction;
 
             if (instr == "lw") {
-                cout<< "rs1_val: " << pipeline.stages[3].result << " offset: " << args[1] << endl;
-                pipeline.stages[3].result = lw(pipeline.stages[3].result);
+                cout<< "rs1_val: " << pipeline.MEM_WB.rd_value << " offset: " << pipeline.MEM_WB.offset << endl;
+                pipeline.MEM_WB.rd_value = lw(pipeline.MEM_WB.address);
             } else if (instr == "sw") {
-                sw(new_rd_value_sw, new_rs1_value_sw);
+                sw(pipeline.MEM_WB.address, pipeline.MEM_WB.rs1_value);
             }
-
+     pipeline.MEM_WB.valid_data = true;
             
-        }
+        
     }
 
     void writeBack() {
-        if (pipeline.stages[4].valid) {
-            auto &instr = pipeline.stages[4].instruction;
-            auto &args = pipeline.stages[4].args;
+        if (!pipeline.WB_Return.valid_instruction) return;
+            auto &instr = pipeline.WB_Return.instruction;
+            auto &args= pipeline.WB_Return.args;
 
             if (instr == "add" || instr == "sub" || instr == "addi" || instr == "slli" || instr == "lw" || instr == "li" || instr == "la") {
-                registers[getRegisterIndex(args[0])] = pipeline.stages[4].result;
+                registers[getRegisterIndex(args[0])] = pipeline.WB_Return.rd_value;
+                std::cout << "[Core " << core_id << "]  Write Back: " << instr 
+                << " | x" << pipeline.WB_Return.rd 
+                << " = " << pipeline.WB_Return.rd_value << "\n";   
+            }
+            else {
+                std::cout << "[Core " << core_id << "]  No Write Back for: " << instr << "\n";
             }
 
             std::cout << "[Core " << core_id << "] Write back for instruction: " << instr << "\n";
-        }
+        pipeline.WB_Return.valid_data = true;
     }
 
     void printRegisters() {
@@ -346,38 +373,9 @@ public:
     }
 
    
-  void handleStalls() {
-            stalls++;
-            clock_cycles++;
-            stall_flag = true;
-            std::cout << "[Core " << core_id << "] Stalling due to hazard... Total Stalls: " << stalls << "\n";
-  }
-
     
     
     
-    
-    int forwardData(int registerIndex) {
-            if (registerIndex == 0) return 0;  // x0 is always zero
-        
-            if (enable_forwarding) {
-                // ✅ 1️⃣ Prefer EX Stage (Most Recent Computation)
-                if (latest_ex_rd == registerIndex) {
-                    std::cout << "[Core " << core_id << "] Forwarding x" << registerIndex 
-                              << " from Stored EX Result: " << latest_ex_result << "\n";
-                    return latest_ex_result;
-                }
-        
-                // ✅ 2️⃣ If EX is empty, check MEM Stage (Next Most Recent)
-                if (pipeline.stages[3].valid && pipeline.stages[3].rd == registerIndex) {
-                    std::cout << "[Core " << core_id << "] Forwarding x" << registerIndex 
-                              << " from MEM stage: " << pipeline.stages[3].result << "\n";
-                    return pipeline.stages[3].result;
-                }
-            }
-        
-            return registers[registerIndex];  // Default register value if no forwarding
-        }
         
 
 };    
