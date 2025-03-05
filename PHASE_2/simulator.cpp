@@ -92,28 +92,23 @@ void executePipeline(Core &core) {
 
     while (running) {
         std::cout << "\n====== [Clock Cycle: " << core.clock_cycles << "] ======" << std::endl;
-        if (core.stall_flag) {
-            std::cout << "[Core " << core.core_id << "] Stalling... No pipeline execution this cycle.\n";
-            core.stall_flag = false; 
-
-            continue;  
-        }
-        core.fetchInstruction(instructions);
-        core.decodeInstruction();
-        core.executeStage();
-        core.memoryStage();
+        core.pipeline.shiftStages(); 
         core.writeBack();
-        core.pipeline.shiftStages();
-        core.clock_cycles++; 
-        running = false;
-        for (int i = 0; i < 5; i++) {
-            if (core.pipeline.stages[i].valid) {
-                running = true;
-                break;
-            }
-        }
-    }
+        core.memoryStage();
+        core.executeStage();
+        core.decodeInstruction();
+        core.fetchInstruction(instructions);
+       
+        core.clock_cycles++;
+         running=false;
+        running =  (core.pipeline.IF_ID.valid_instruction || core.pipeline.ID_EX.valid_instruction ||  core.pipeline.EX_MEM.valid_instruction || core.pipeline.MEM_WB.valid_instruction || core.pipeline.WB_Return.valid_instruction); 
+                 
+                   
+    
 }
+}
+ 
+
 
 int main() {
     std::vector<Core> cores;
@@ -132,7 +127,7 @@ int main() {
         cout << endl;
     }
 
-    printMemory();
+    //printMemory();
 
     return 0;
 }
