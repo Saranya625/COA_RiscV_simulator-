@@ -1,7 +1,7 @@
 .text
-addi x3,x0,4
-addi x4,x0,7
-sw x3,0(x4)
-sw x4,4(x5)
-lw x6,4(x5)
-add x9,x3,x4
+addi x1, x0, 3       # x1 = 3
+addi x2, x0, 5       # x2 = 5
+add x3, x1, x2       # Add x1 and x2, result in x3
+sw x3, 0(x4)         # Store result of addition (x3) into address in x4
+lw x5, 0(x4)         # Load word from address in x4
+sub x6, x5, x1       # Subtract x1 from x5, result goes to x6
