@@ -47,6 +47,7 @@ public:
                 IF_ID.stalled = true;
                 stall_flag=false;
                 stalled_stage=0;
+                stalls++;
                 
             }
             if(stalled_stage==3){
@@ -57,6 +58,7 @@ public:
                 IF_ID.stalled = true;
                 stall_flag=false;
                 stalled_stage=0;
+                stalls++;
             }
             if(stalled_stage==2){
                 if(enabled_forwarding && !ex_dependency){
@@ -65,6 +67,7 @@ public:
                 EX_MEM.stalled = true;
                 ID_EX.stalled = true;
                 IF_ID.stalled = true;
+                stalls++;
                 stall_flag=false;
                 stalled_stage=0;
                 }
@@ -85,6 +88,7 @@ public:
                     EX_MEM.stalled = true;
                     ID_EX.stalled = true;
                     IF_ID.stalled = true;
+                    stalls++;
                     stall_flag=false;
                     stalled_stage=0;
 
@@ -96,6 +100,7 @@ public:
                 EX_MEM=ID_EX;
                 ID_EX.stalled = true;
                 IF_ID.stalled = true;
+                stalls++;
                 stall_flag=false;
                 stalled_stage=0;
             }
@@ -134,6 +139,7 @@ public:
     bool enable_forwarding;  
     int latest_ex_result ;
     int hazard_in_id = 0;
+    int number_instructions =0;
   
     Core(int id, std::unordered_map<std::string, int> &labels, bool forwarding) : core_id(id), label_map(labels), enable_forwarding(forwarding){
         registers[0]=0;
@@ -184,7 +190,7 @@ public:
             auto &args = pipeline.ID_EX.args;
             cout<<"[core "<<core_id<<"] Decoding instruction: "<<instr<<endl;
             //3.CHECK AND DECODE ACCORDINGLY 
-            if (instr == "add" || instr == "sub" || instr == "and" || instr == "or" || instr == "xor") {
+            if (instr == "add" || instr == "sub" || instr == "and" || instr == "or" || instr == "xor"|| instr == "mul") {
                 pipeline.ID_EX.rd = getRegisterIndex(args[0]);  
                 pipeline.ID_EX.rs1 = getRegisterIndex(args[1]); 
                 pipeline.ID_EX.rs2 = getRegisterIndex(args[2]); 
@@ -225,15 +231,13 @@ public:
                     //5. IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY IN EX
                   if (pipeline.EX_MEM.valid_instruction && (pipeline.EX_MEM.rd == pipeline.ID_EX.rs1|| pipeline.EX_MEM.rd == pipeline.ID_EX.rs2)) {
                     cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
-                    pipeline.stalls++;//Incrementing stalls
                     pipeline.stall_flag=true;//stall flag is true 
                     pipeline.stalled_stage=2; // stall stage ID     
                     pipeline.ex_dependency=true; // EX dependency on prev instruction          
                    }
                    //5. IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY IN MEM
                    if (pipeline.MEM_WB.valid_instruction && (pipeline.MEM_WB.rd == pipeline.ID_EX.rs1||pipeline.MEM_WB.rd == pipeline.ID_EX.rs2)) {
-                    cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;
-                        pipeline.stalls++;//incrementing stalls 
+                    cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl; 
                         pipeline.stall_flag=true; // stall flag is true
                         pipeline.stalled_stage=2; // stall stage ID
                         pipeline.mem_dependency= true ; // MEM dependency on prev instruction
@@ -274,7 +278,6 @@ public:
                     //5. IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY IN EX
                     if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs1) {
                         cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
-                        pipeline.stalls++;//Incrementing stalls
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
                         pipeline.ex_dependency=true; // EX dependency on prev instruction 
@@ -283,7 +286,6 @@ public:
                     //5. IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY IN MEM
                     if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs1) {
                         cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
-                        pipeline.stalls++;//Incrementing stalls
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
                         pipeline.mem_dependency=true; // EX dependency on prev instruction 
@@ -345,7 +347,6 @@ public:
                     //5. IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY IN EX
                     if (pipeline.EX_MEM.valid_instruction && (pipeline.EX_MEM.rd == pipeline.ID_EX.rs1 && pipeline.ID_EX.offset== pipeline.EX_MEM.offset && pipeline.EX_MEM.instruction=="sw" ) ){
                         cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
-                        pipeline.stalls++;//Incrementing stalls
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
                         pipeline.ex_dependency=true; // EX dependency on prev instruction  
@@ -354,7 +355,6 @@ public:
                     }
                     if (pipeline.EX_MEM.valid_instruction && (pipeline.EX_MEM.rd == pipeline.ID_EX.rs1 && pipeline.EX_MEM.instruction!="sw" ) ){
                         cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
-                        pipeline.stalls++;//Incrementing stalls
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
                         pipeline.ex_dependency=true; // EX dependency on prev instruction  
@@ -365,7 +365,6 @@ public:
                     //5. IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY IN MEM
                     if (pipeline.MEM_WB.valid_instruction && (pipeline.MEM_WB.rd == pipeline.ID_EX.rs1 && pipeline.MEM_WB.offset== pipeline.ID_EX.offset && pipeline.MEM_WB.instruction=="sw") ){
                         cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
-                        pipeline.stalls++;//Incrementing stalls
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
                         pipeline.mem_dependency=true; // EX dependency on prev instruction         
@@ -374,7 +373,6 @@ public:
                     }
                     if (pipeline.MEM_WB.valid_instruction && (pipeline.MEM_WB.rd == pipeline.ID_EX.rs1 && pipeline.MEM_WB.instruction!="sw") ){
                         cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
-                        pipeline.stalls++;//Incrementing stalls
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
                         pipeline.mem_dependency=true; // EX dependency on prev instruction         
@@ -417,7 +415,6 @@ public:
                 else{
                     if(pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs1){
                         cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
-                        pipeline.stalls++;//Incrementing stalls
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
                         pipeline.ex_dependency=true; // EX dependency on prev instruction        
@@ -425,7 +422,6 @@ public:
                     }
                     if(pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs1){
                         cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
-                        pipeline.stalls++;//Incrementing stalls
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
                         pipeline.mem_dependency=true; // MEM dependency on prev instruction 
@@ -451,9 +447,9 @@ public:
             }
 
     pipeline.ID_EX.valid_data = true;
+   
 }
     
-
     void executeStage() {
         if (!pipeline.EX_MEM.valid_instruction ) 
         {
@@ -540,10 +536,19 @@ public:
         if (!pipeline.MEM_WB.valid_instruction ) return;
         if(pipeline.MEM_WB.stalled){
             pipeline.MEM_WB.stalled=false;
+            pipeline.MEM_WB.valid_instruction=false;
             return ;
         }
         if(enable_forwarding==0){
             pipeline.MEM_WB.rs1_value= registers[pipeline.MEM_WB.rs1];
+            if(pipeline.MEM_WB.instruction == "lw" ){
+                pipeline.MEM_WB.address=pipeline.MEM_WB.rs1_value + pipeline.MEM_WB.offset;
+            }
+            if(pipeline.MEM_WB.instruction == "sw"){
+                pipeline.MEM_WB.rd_value = registers[pipeline.MEM_WB.rd];
+                pipeline.MEM_WB.address=pipeline.MEM_WB.rd_value + pipeline.MEM_WB.offset;
+            }
+            
         }
         std::cout << "[Core " << core_id << "] Memory stage for instruction: " << pipeline.MEM_WB.instruction << "\n";
             auto &instr = pipeline.MEM_WB.instruction;
@@ -555,7 +560,7 @@ public:
                 sw(pipeline.MEM_WB.address, pipeline.MEM_WB.rs1_value);
             }
      pipeline.MEM_WB.valid_data = true;
-            
+
         
     }
 
@@ -578,6 +583,7 @@ public:
 
             std::cout << "[Core " << core_id << "] Write back for instruction: " << instr << "\n";
         pipeline.WB_Return.valid_data = true;
+        number_instructions++;
     }
 
     void printRegisters() {
