@@ -39,7 +39,8 @@ To demonstrate the functionality of our simulator, we have provided an **assembl
 
 After execution, the simulator prints the final register values and memory contents. 🚀
 
-# Minutes of Meeting - RISC-V Simulator Development  
+## Minutes of Meeting 
+# RISC-V Simulator Development (PHASE - 1) 
 
 ## **February 20**  
 ### **Final Fixes:**  
@@ -87,8 +88,6 @@ After execution, the simulator prints the final register values and memory conte
 #### **Binnu (Simulator):**  
 - Implemented additional instructions (`la`, `li`, `slli`, etc.) required for the **bubble sort program**.  
 
----
-
 ## **February 17**  
 ### **Decisions:**  
 
@@ -102,8 +101,6 @@ After execution, the simulator prints the final register values and memory conte
 #### **Binnu (Core & Memory):**  
 - Added debugging commands (`print registers`, `print memory`) to **verify `lw` and `sw` operations**.  
 
----
-
 ## **February 15**  
 ### **Decisions:**  
 
@@ -116,7 +113,6 @@ After execution, the simulator prints the final register values and memory conte
 - **Binnu:** Worked on `core.cpp` and `memory.cpp`.  
 - **Saranya:** Worked on the **simulator's basic functionality**.  
 
----
 
 ## **February 14**  
 ### **Decisions:**  
