@@ -40,6 +40,46 @@ To demonstrate the functionality of our simulator, we have provided an **assembl
 After execution, the simulator prints the final register values and memory contents. 🚀
 
 ## Minutes of Meeting 
+# RISC-V Simulator Development (PHASE - 2)
+---
+
+## Development Timeline
+
+## **28th February**
+- **Saranya:** Initially implemented registers for each stage in the pipeline, laying the foundation for efficient instruction execution.
+- **Binnu:** Implemented stalls to handle pipeline hazards, ensuring smooth execution flow.
+
+## **1st March**
+- **Saranya:** Successfully integrated data forwarding to minimize stalls and improve performance.
+- **Binnu:** Debugging and refining the implementation to ensure correctness and stability.
+
+## **2nd March**
+- **Saranya:** Realized the initial pipeline design had fundamental flaws and restructured it to have a dedicated pipeline for each stage.
+- **Binnu:** Conducted thorough checks on data dependencies to refine pipeline execution.
+
+## **3rd March**
+- **Saranya:** Re-enabled data forwarding after design modifications to optimize instruction flow.
+- **Binnu:** Continued fixing bugs to ensure correct execution and data propagation.
+
+## **5th - 6th March**
+- **Saranya:** Implemented variable latencies and introduced user input functionality, adding flexibility to execution. Due to design changes, stalls couldn't be implemented yet.
+- **Binnu:** Successfully implemented the shift stages function and enabled stalls within it, providing better hazard handling.
+
+## **7th - 8th March**
+- **Saranya:** Attempted to implement Bubble Sort, but encountered errors in memory allocation. Began working on the single fetch unit to streamline instruction handling.
+- **Binnu:** Experimented with different `.asm` files and verified clock cycle correctness to ensure accurate instruction execution.
+
+## **9th March**
+- **Saranya:** Handled ALU and memory instruction dependencies while implementing variable latencies for ALU operations.
+- **Binnu:** Adapted branch and jump instructions to accommodate the new single fetch unit, ensuring proper instruction fetching across all cores.
+
+---
+
+## Conclusion
+Significant progress has been made in refining the RISC-V simulator, from pipeline structuring to advanced optimizations like data forwarding, variable latencies, and hazard handling. With ongoing debugging and refinements, the project is steadily progressing toward a more robust and efficient simulation model.
+
+---
+
 # RISC-V Simulator Development (PHASE - 1) 
 
 ## **February 20**  
@@ -117,42 +157,6 @@ After execution, the simulator prints the final register values and memory conte
 - **Saranya** worked on this initial structure.  
 
 ---
-# RISC-V Simulator Development (PHASE - 2)
----
 
-## Development Timeline
-
-## **28th February**
-- **Saranya:** Initially implemented registers for each stage in the pipeline, laying the foundation for efficient instruction execution.
-- **Binnu:** Implemented stalls to handle pipeline hazards, ensuring smooth execution flow.
-
-## **1st March**
-- **Saranya:** Successfully integrated data forwarding to minimize stalls and improve performance.
-- **Binnu:** Debugging and refining the implementation to ensure correctness and stability.
-
-## **2nd March**
-- **Saranya:** Realized the initial pipeline design had fundamental flaws and restructured it to have a dedicated pipeline for each stage.
-- **Binnu:** Conducted thorough checks on data dependencies to refine pipeline execution.
-
-## **3rd March**
-- **Saranya:** Re-enabled data forwarding after design modifications to optimize instruction flow.
-- **Binnu:** Continued fixing bugs to ensure correct execution and data propagation.
-
-## **5th - 6th March**
-- **Saranya:** Implemented variable latencies and introduced user input functionality, adding flexibility to execution. Due to design changes, stalls couldn't be implemented yet.
-- **Binnu:** Successfully implemented the shift stages function and enabled stalls within it, providing better hazard handling.
-
-## **7th - 8th March**
-- **Saranya:** Attempted to implement Bubble Sort, but encountered errors in memory allocation. Began working on the single fetch unit to streamline instruction handling.
-- **Binnu:** Experimented with different `.asm` files and verified clock cycle correctness to ensure accurate instruction execution.
-
-## **9th March**
-- **Saranya:** Handled ALU and memory instruction dependencies while implementing variable latencies for ALU operations.
-- **Binnu:** Adapted branch and jump instructions to accommodate the new single fetch unit, ensuring proper instruction fetching across all cores.
-
----
-
-## Conclusion
-Significant progress has been made in refining the RISC-V simulator, from pipeline structuring to advanced optimizations like data forwarding, variable latencies, and hazard handling. With ongoing debugging and refinements, the project is steadily progressing toward a more robust and efficient simulation model.
 
 This **README** documents the progress and key decisions in developing the **RISC-V Simulator**. 🚀
