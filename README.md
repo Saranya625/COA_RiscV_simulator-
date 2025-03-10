@@ -79,8 +79,7 @@ After execution, the simulator prints the final register values and memory conte
 - **Binnu:** Adapted branch and jump instructions to accommodate the new single fetch unit, ensuring proper instruction fetching across all cores.
 
 ## **7th - 8th March**
-- **Saranya:**
-       - Attempted to implement Bubble Sort, but encountered errors in memory dependencies and corrected the data dependencies on memory instructions.
+- **Saranya:**Attempted to implement Bubble Sort, but encountered errors in memory dependencies and corrected the data dependencies on memory instructions.
        - Fixed the errors in varaible latenices like : values getting lost after the nth execution of the the instruction.
 - **Binnu:** Experimented with different `.asm` files and verified clock cycle correctness to ensure accurate instruction execution.
 
