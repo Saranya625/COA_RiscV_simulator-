@@ -59,8 +59,6 @@ After execution, the simulator prints the final register values and memory conte
 
 - ✅ **Final Outcome:** The bubble sort program executed successfully!  
 
----
-
 ## **February 19**  
 ### **Challenges Faced:**  
 
@@ -74,8 +72,6 @@ After execution, the simulator prints the final register values and memory conte
 - Fixed the issue and successfully executed basic loops.  
 
 **Conclusion:** Bubble sort still did not work.  
-
----
 
 ## **February 18**  
 ### **Decisions:**  
