@@ -94,6 +94,7 @@ void sw(int address, int value, int core_id) {
     std::cout << "After Store:  Memory[0x" << std::hex << address << "] = " << std::dec << new_value << std::endl;
 }
 
+
 void printMemory() {
     std::cout << "\n=== Memory State ===\n";
     for (int addr = 0; addr < MEMORY_SIZE; addr += 4) {
