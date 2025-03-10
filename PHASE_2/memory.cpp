@@ -55,7 +55,7 @@ int lw(int address) {
 int lw(int address, int core_id) {
     int base_address = core_id * 1024;
     int max_address = base_address + 1024;
-    if (address < base_address || address >= max_address) {
+    if (address < base_address || address >= MEMORY_SIZE) {
         std::cerr << "Error: Core " << core_id << " tried to access memory out of its range!\n";
         exit(1);
     }
@@ -81,7 +81,7 @@ int lw(int address, int core_id) {
 void sw(int address, int value, int core_id) {
     int base_address = (core_id) * 1024;
     int max_address = base_address + 1024;
-    if (address < base_address || address >= max_address) {
+    if (address < 0 || address >= MEMORY_SIZE) {
         std::cerr << "Error: Core " << core_id << " tried to access memory out of its range!\n";
         exit(1);
     }
@@ -103,4 +103,3 @@ void printMemory() {
     }
     std::cout << std::endl;
 }
-
