@@ -9,7 +9,7 @@ using namespace std;
  
 
 struct PipelineStage {
-    std::string instruction;
+    std::string instruction ;
     std::vector<std::string> args;
     int rs1, rs2, rd;
     int rs1_value= 0,rs2_value= 0,rd_value=0;
