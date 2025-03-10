@@ -123,36 +123,36 @@ After execution, the simulator prints the final register values and memory conte
 ## Development Timeline
 
 ## **28th February**
-- **S:** Initially implemented registers for each stage in the pipeline, laying the foundation for efficient instruction execution.
-- **B:** Implemented stalls to handle pipeline hazards, ensuring smooth execution flow.
+- **Saranya:** Initially implemented registers for each stage in the pipeline, laying the foundation for efficient instruction execution.
+- **Binnu:** Implemented stalls to handle pipeline hazards, ensuring smooth execution flow.
 
 ## **1st March**
-- **S:** Successfully integrated data forwarding to minimize stalls and improve performance.
-- **B:** Debugging and refining the implementation to ensure correctness and stability.
+- **Saranya:** Successfully integrated data forwarding to minimize stalls and improve performance.
+- **Binnu:** Debugging and refining the implementation to ensure correctness and stability.
 
 ## **2nd March**
-- **S:** Realized the initial pipeline design had fundamental flaws and restructured it to have a dedicated pipeline for each stage.
-- **B:** Conducted thorough checks on data dependencies to refine pipeline execution.
+- **Saranya:** Realized the initial pipeline design had fundamental flaws and restructured it to have a dedicated pipeline for each stage.
+- **Binnu:** Conducted thorough checks on data dependencies to refine pipeline execution.
 
 ## **3rd March**
-- **S:** Re-enabled data forwarding after design modifications to optimize instruction flow.
-- **B:** Continued fixing bugs to ensure correct execution and data propagation.
+- **Saranya:** Re-enabled data forwarding after design modifications to optimize instruction flow.
+- **Binnu:** Continued fixing bugs to ensure correct execution and data propagation.
 
 ## **5th - 6th March**
-- **S:** Implemented variable latencies and introduced user input functionality, adding flexibility to execution. Due to design changes, stalls couldn't be implemented yet.
-- **B:** Successfully implemented the shift stages function and enabled stalls within it, providing better hazard handling.
+- **Saranya:** Implemented variable latencies and introduced user input functionality, adding flexibility to execution. Due to design changes, stalls couldn't be implemented yet.
+- **Binnu:** Successfully implemented the shift stages function and enabled stalls within it, providing better hazard handling.
 
 ## **7th - 8th March**
-- **S:** Attempted to implement Bubble Sort, but encountered errors in memory allocation. Began working on the single fetch unit to streamline instruction handling.
-- **B:** Experimented with different `.asma` files and verified clock cycle correctness to ensure accurate instruction execution.
+- **Saranya:** Attempted to implement Bubble Sort, but encountered errors in memory allocation. Began working on the single fetch unit to streamline instruction handling.
+- **Binnu:** Experimented with different `.asm` files and verified clock cycle correctness to ensure accurate instruction execution.
 
 ## **9th March**
-- **S:** Handled ALU and memory instruction dependencies while implementing variable latencies for ALU operations.
-- **B:** Adapted branch and jump instructions to accommodate the new single fetch unit, ensuring proper instruction fetching across all cores.
+- **Saranya:** Handled ALU and memory instruction dependencies while implementing variable latencies for ALU operations.
+- **Binnu:** Adapted branch and jump instructions to accommodate the new single fetch unit, ensuring proper instruction fetching across all cores.
 
 ---
 
 ## Conclusion
 Significant progress has been made in refining the RISC-V simulator, from pipeline structuring to advanced optimizations like data forwarding, variable latencies, and hazard handling. With ongoing debugging and refinements, the project is steadily progressing toward a more robust and efficient simulation model.
 
-This **README** documents the progress and key decisions in developing the **RISC-V Simulator**. 🚀  
+This **README** documents the progress and key decisions in developing the **RISC-V Simulator**. 🚀
