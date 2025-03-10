@@ -71,7 +71,7 @@ After execution, the simulator prints the final register values and memory conte
 ---
 ## **10th March**
 **DESIGN DECISION**:Realised the single fetch unit would not work , reason is written in the key take away.
-- **Saranya:** Implemented the fetch in a different way handling the CID units , tested the array sum and fixed the bugs .
+- **Saranya:** Implemented the fetch in a different way handling the CID condition , tested the array sum and fixed the bugs .
 - **Binnu:** Adapted branch and jump instructions to accommodate the new single fetch unit, ensuring proper instruction fetching across all cores.
 
 ## **9th March**
