@@ -1,14 +1,15 @@
 Specifications{
-    data_forwarding:0
-    L1_cache_size:64
+    data_forwarding:1
+    replacement_policy:LRU
+    L1_cache_size:32
     L2_cache_size:1024
     L1_associativity:2
-    L2_associativity:4
-    L1_latency:1 
-    L2_latency:3
-    Main_memory:7
+    L2_associativity:2
+    L1_latency:1
+    L2_latency:1
+    Main_memory:1
     [Arithmetic variable latencies:
-    addi=3
+addi=3
     ]
     
 }
