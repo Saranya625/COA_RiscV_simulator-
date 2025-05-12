@@ -137,13 +137,14 @@ The following **RISC-V instructions** are implemented in our simulator:
 
 ## 11th May
  **Saranya:** Designed, implemented, and rigorously tested the `SYNC` function, which synchronizes all cores at a defined execution point.
-** Binnu:** Contributed to the design and refinement of the SYNC function.
+**Binnu:** Contributed to the design and refinement of the SYNC function.
 
 ## 10th May 
  **Saranya:**
 * Implemented the Most Recently Used (LRU) cache replacement policy.
 * Added support for configurable data cache sizes based on user input.
-* Completed the instruction and data caches
+* Completed the instruction and data caches.
+  
 **Binnu:** Completed the implementation of data caches using the Least Recently Used (MRU) replacement policy , tried implementing varaible fetch latencies .
 ## 9th May
 **Saranya:** Implemented the designs for instruction and data caches .
