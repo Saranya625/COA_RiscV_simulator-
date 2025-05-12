@@ -44,6 +44,24 @@ HoThe SYNC instruction is implemented to simulate a barrier synchronization acro
 * Every core has a core specific Scratch Pad Memory 
 * SPM is not coherent with main memory and must be managed manually if synchronization is needed.
 * It can implement the instructions `lw_spm` which means load word from Scratch Pad Memory and `sw_spm` which means Store word to Scratch Pad Memory .
+### Part 1:
+##### Without SPM:
+* Strided access: a[0], a[X], a[2X], ..., a[99X]
+* X = 100 → so access pattern: a[0], a[100], a[200], ..., a[9900]
+* In a direct-mapped cache, all of these addresses map to the same cache set, causing 100% conflict misses (only 1 block is used).
+* Every access is a miss with an approx of 70k extra cycles.
+##### With SPM:
+* First 1000 cycles are misses rest of them are hit 
+* with an approx increase of 10x in the IPC .
+### Part 2:
+* All accessed elements can fit into the cache simultaneously.
+* Generally there's not much difference observed in the IPC with and without SPM.
+* But my simulator shosws a bit of difference not sure if it's because of loop holes in the simulator.
+### Part 3:
+1. Scratchpad memories (SPMs) are more efficient and less complex than caches since they do not involve complex hardware mechanisms like tag comparison, cache check, or replacement policies. Caches need to check for hits or misses, decide which line to replace (in case of conflicts), and ensure coherence — all of which take time and power. SPMs are  addressed and fully managed by the programmer, which makes their access easy and quicker. Since no ther's no complex logic for data searching or replacing is present, SPMs can be built with lower access latency and much lowered power consumption. 
+2. Let’s analyze why using SPM is advantageous in this specific scenario:When accessing 200 elements in a strided pattern (i.e., a[0], a[X], a[2X], ..., a[199X]), the L1D cache (400 bytes = 100 words) cannot hold all 200 strided elements at once. Due to the strided access,  direct-mapped or even fully associative caches, cache evictions will occur frequently as new strided elements replace older ones. This leads to repeated cache misses, reloading data from memory multiple times across the 100 outer iterations (count loop), which introduces performance overhead.
+3. With SPM, the programmer  preloads the first 100 needed values into the scratchpad memory using sw_spm, and then repeatedly reuses them across 200 iterations using lw_spm. While the second 100 strided elements (indices 100–199) are still accessed from main memory, the first 100 accesses are served without any eviction or reloading overhead, because SPM access is predictable and under full programmer control.
+4. All the cases have resulted in better performance of the SPM.
 ---
 ## KEY TAKEAWAYS FROM IMPLEMENTED PHASE 3
 ### 1.How It Works:
