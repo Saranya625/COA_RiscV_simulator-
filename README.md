@@ -133,10 +133,12 @@ The following **RISC-V instructions** are implemented in our simulator:
 ---
 ## 12th May
  **Saranya:** Implemented the Scratch Pad Memory (SPM) system, including support for variable access latencies.
+ 
  **Binnu:** Assisted in preparing the README, report documentation, and test cases for the Scratch Pad Memory module.
 
 ## 11th May
  **Saranya:** Designed, implemented, and rigorously tested the `SYNC` function, which synchronizes all cores at a defined execution point.
+ 
 **Binnu:** Contributed to the design and refinement of the SYNC function.
 
 ## 10th May 
@@ -148,17 +150,19 @@ The following **RISC-V instructions** are implemented in our simulator:
 **Binnu:** Completed the implementation of data caches using the Least Recently Used (MRU) replacement policy , tried implementing varaible fetch latencies .
 ## 9th May
 **Saranya:** Implemented the designs for instruction and data caches .
+
 **Binnu:** Implmented varaible cache latencies for data caches and helped with instruction cache.
 ## 8th May
 **Saranya & Binnu**: Finalized the design for the complete simulator, including the memory systems. All previously identified flaws were addressed and corrected.
 ## 7th May
-Saranya: Designed the initial architecture for the memory system.
+**Saranya:** Designed the initial architecture for the memory system.
 ## Minutes of Meeting 
 # RISC-V Simulator Development (PHASE - 2)
 ---
 ## **10th March**
 **DESIGN DECISION**:Realised the single fetch unit would not work , reason is written in the key take away.
 - **Saranya:** Implemented the fetch in a different way handling the CID condition , tested the array sum and fixed the bugs .
+
 - **Binnu:** Adapted branch and jump instructions to accommodate the new single fetch unit, ensuring proper instruction fetching across all cores.
 
 ## **9th March**
