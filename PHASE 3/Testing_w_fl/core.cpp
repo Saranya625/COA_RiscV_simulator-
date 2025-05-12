@@ -125,27 +125,22 @@ public:
 
         else {
             cout << "Stall flag is flase"<<endl;
-            bool mem_stall=false;
-            bool ex_stall= false;
-            if (EX_MEM.remaining_cycles >1){
-                if(EX_MEM.valid_instruction){
+            if(EX_MEM.remaining_cycles >1){
                 EX_MEM.remaining_cycles--;
                 cout << " stalling due to high latency ."<< endl ;
                 WB_Return=MEM_WB;
-                MEM_WB=MEM_WB;
+                MEM_WB.valid_instruction = false;
                 fetch_stall=true;
                 EX_MEM=EX_MEM;
                 ID_EX.stalled=true;
                 stalls++;
                 EX_MEM.extra_cycles ++;
                 stall_flag=false;
-                ex_stall=true;
               cout<<" EX_MEM.extra_cycles:"<< EX_MEM.extra_cycles<<endl;
             }
-           }
-         if(MEM_WB.memory_latency>1){
+            else if(MEM_WB.memory_latency>1 && MEM_WB.valid_instruction){
                 MEM_WB.memory_latency=MEM_WB.memory_latency-1;
-                WB_Return.valid_instruction=false;
+                WB_Return.valid_instruction = false;
                 fetch_stall=true;
                 MEM_WB=MEM_WB;
                 IF_ID=IF_ID;
@@ -156,12 +151,8 @@ public:
                 stalls++;               
                 MEM_WB.extra_cycles++;
                 stall_flag=false;
-                mem_stall=true;
-                cout<<"remaning cycles"<<MEM_WB.memory_latency<<endl;
             }
-            if(!ex_stall && !mem_stall){ 
-                    WB_Return.stalled=false;
-                    MEM_WB.stalled=false;
+            else{
                     EX_MEM.stalled=false;               
                     ID_EX.stalled=false;   
                     WB_Return = MEM_WB;
@@ -176,7 +167,8 @@ public:
                     return ;
                 }
                
-        }
+            }
+
  
         
     }
