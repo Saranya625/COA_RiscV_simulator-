@@ -141,14 +141,13 @@ The following **RISC-V instructions** are implemented in our simulator:
 
 ## 10th May 
  **Saranya:**
-* Implemented the Most Recently Used (MRU) cache replacement policy.
+* Implemented the Most Recently Used (LRU) cache replacement policy.
 * Added support for configurable data cache sizes based on user input.
-* Integrated variable memory access latencies for data caches.
-
-**Binnu:** Completed the implementation of data caches using the Least Recently Used (LRU) replacement policy.
+* Completed the instruction and data caches
+**Binnu:** Completed the implementation of data caches using the Least Recently Used (MRU) replacement policy , tried implementing varaible fetch latencies .
 ## 9th May
-**Saranya:** Began implementation of the instruction memory from scratch and developed instruction caches with support for variable fetch latencies.
-**Binnu:** Started implementation of data caches.
+**Saranya:** Implemented the designs for instruction and data caches .
+**Binnu:** Implmented varaible cache latencies for data caches and helped with instruction cache.
 ## 8th May
 **Saranya & Binnu**: Finalized the design for the complete simulator, including the memory systems. All previously identified flaws were addressed and corrected.
 ## 7th May
