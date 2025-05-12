@@ -1,6 +1,74 @@
 # RISC-V Simulator
 
-This **RISC-V Simulator** is designed to execute assembly programs using a **multi-core architecture**. It supports **4 cores**, each with its own dedicated **1KB memory segment**. The simulator reads assembly instructions from a file, processes them, and executes them sequentially.  
+### Phase 1: Multi-Core RISC-V Simulator
+A RISC-V simulator was developed to execute assembly programs using a multi-core architecture. The simulator supports 4 cores, each assigned a dedicated 1KB memory segment. It reads assembly instructions from a file and executes them sequentially for each core. Each core executes independently, with no inter-core communication.
+
+### Phase 2: Pipelined Execution
+In this phase, instruction pipelining was introduced to improve performance. The pipeline supports:
+* Variable latencies for arithmetic instructions.
+* Core-dependent branch instructions, allowing cores to conditionally execute based on their identity.
+* A shared instruction fetch unit with independent decode, execute, memory, and write-back stages for each core.
+* Optional data forwarding and stall detection logic.
+* Final statistics include stalls and Instructions Per Cycle (IPC).
+
+### Phase 3: Cache Hierarchy
+#### A multi-level cache system was implemented:
+* Each core includes a private L1 instruction (L1I) and L1 data (L1D) cache.
+* A shared unified L2 data cache and L2 instruction cache connects all cores.
+* Separate instruction memory and data memory.
+* Cache configuration (size, associativity, block size, latency) is provided via an external file- `Specifications.txt`.
+* A complete write through Cache 
+* Supports Least Recently Used (LRU) and Most recently used (MRU) policies .
+* With variable memory latencies for the Instruction memory accesses and Data accesses depening on the hit or miss of the cache 
+* Tracks cache hit/miss rates, stall cycles, and performance metrics.
+
+#### SYNC Instruction
+A special instruction SYNC was introduced, acting as a no-op (NOP) that enforces synchronization across all cores. Execution stalls at SYNC until all cores reach this instruction, ensuring consistent execution points in parallel programs.
+HoThe SYNC instruction is implemented to simulate a barrier synchronization across multiple cores in hardware. This ensures that all cores reach the same program counter (PC) value before continuing execution. Here's how it works:
+
+##### IMPLEMENTATION DETAILS:
+* Each core maintains a 1-bit barrier flag (e.g., sync_bit[i] for Core i).
+* A shared hardware mechanism (or a synchronization controller) constantly monitors the PC values of all cores.
+* When a core encounters the SYNC instruction:
+* It first checks the PC of the core which is different from others
+* It sets its barrier bit to 1.
+* It enters a stall state for the specific, waiting for other cores to reach the same pc .
+* The synchronization controller checks whether all PC values are equal (i.e., all cores have reached the same SYNC instruction).
+* Once all barrier bits are set (i.e., all cores reached the same PC):
+* The controller resets all barrier bits to 0.
+* All cores are unstalled and allowed to continue execution.
+
+#### Scratch Pad Memory:
+* This memory has the same access latency and size as the L1D cache.
+* SPM is explicitly controlled by the programmer. The system does not automatically move data between main memory and SPM.
+* Every core has a core specific Scratch Pad Memory 
+* SPM is not coherent with main memory and must be managed manually if synchronization is needed.
+* It can implement the instructions `lw_spm` which means load word from Scratch Pad Memory and `sw_spm` which means Store word to Scratch Pad Memory .
+---
+## KEY TAKEAWAYS FROM IMPLEMENTED PHASE 3
+### 1.How It Works:
+All the specifications must be listed in a file named `Specifictaions.txt` in the below manner.
+```cpp==
+Specifications{
+    data_forwarding:1 
+    replacement_policy:MRU
+    line_size:16
+    L1_cache_size:32
+    L2_cache_size:1024
+    L1_associativity:2
+    L2_associativity:4
+    L1_latency:1
+    L2_latency : 4
+    Main_memory:7
+    [Arithmetic variable latencies:
+    addi=3
+    ]  
+}
+
+```
+Inputs from this file are taken to intialise the Memory system of the simulator the TOTAL MEMORY SIZE and INSTRUCTION MEMORY SIZE will remain contant i.e 4096 and 1025B respecitively.
+
+---
 ## KEY TAKEAWAYS FROM IMPLEMENTED PHASE 2
 ### 1.How It Works:
 1. Provides an option to enable or disable data forwarding.
@@ -60,12 +128,31 @@ The following **RISC-V instructions** are implemented in our simulator:
 - `nop` - Does nothing (used for alignment or delays).
 
 ---
+## Minutes of Meeting 
+# RISC-V Simulator Development (PHASE - 3)
+---
+## 12th May
+ **Saranya:** Implemented the Scratch Pad Memory (SPM) system, including support for variable access latencies.
+ **Binnu:** Assisted in preparing the README, report documentation, and test cases for the Scratch Pad Memory module.
 
-## Bubble Sort Implementation
-To demonstrate the functionality of our simulator, we have provided an **assembly file (`assembly.asm`)** containing **Bubble Sort**. This program sorts an array using the **implemented RISC-V instructions** and executes it within the simulator using the intructions in it.
+## 11th May
+ **Saranya:** Designed, implemented, and rigorously tested the `SYNC` function, which synchronizes all cores at a defined execution point.
+** Binnu:** Contributed to the design and refinement of the SYNC function.
 
-After execution, the simulator prints the final register values and memory contents. 🚀
+## 10th May 
+ **Saranya:**
+* Implemented the Most Recently Used (MRU) cache replacement policy.
+* Added support for configurable data cache sizes based on user input.
+* Integrated variable memory access latencies for data caches.
 
+**Binnu:** Completed the implementation of data caches using the Least Recently Used (LRU) replacement policy.
+## 9th May
+**Saranya:** Began implementation of the instruction memory from scratch and developed instruction caches with support for variable fetch latencies.
+**Binnu:** Started implementation of data caches.
+## 8th May
+**Saranya & Binnu**: Finalized the design for the complete simulator, including the memory systems. All previously identified flaws were addressed and corrected.
+## 7th May
+Saranya: Designed the initial architecture for the memory system.
 ## Minutes of Meeting 
 # RISC-V Simulator Development (PHASE - 2)
 ---
@@ -188,6 +275,3 @@ Significant progress has been made in refining the RISC-V simulator, from pipeli
 - **Saranya** worked on this initial structure.  
 
 ---
-
-
-This **README** documents the progress and key decisions in developing the **RISC-V Simulator**. 🚀
