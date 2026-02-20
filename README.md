@@ -1,5 +1,30 @@
 # RISC-V Simulator
 
+### To run :
+```
+git clone https://github.com/Saranya625/COA_RiscV_simulator-.git
+cd COA_RiscV_simulator-
+
+#for phase 1
+cd Final_final
+g++ simulator.cpp
+./a.out assembly.asm #(any other asm files)
+
+#for phase 2
+cd PHASE_2
+g++ simulator.cpp
+./a.out assembly.asm #(any other asm files)
+
+#for phase 2
+cd 'PHASE 3'
+g++ simulator.cpp
+./a.out assembly.asm #(any other asm files)
+
+
+
+```
+
+
 ### Phase 1: Multi-Core RISC-V Simulator
 A RISC-V simulator was developed to execute assembly programs using a multi-core architecture. The simulator supports 4 cores, each assigned a dedicated 1KB memory segment. It reads assembly instructions from a file and executes them sequentially for each core. Each core executes independently, with no inter-core communication.
 
