@@ -20,7 +20,7 @@ using namespace std;
 #define CORE_COUNT 4
 #define INSTRUCTION_MEMORY_SIZE 1024
 vector<std::pair<string, vector<string>>> instructions;
-uint32_t memory_main[MEMORY_SIZE] = {0}; 
+uint8_t memory_main[MEMORY_SIZE] = {0}; 
 vector<string>instruction_memory {INSTRUCTION_MEMORY_SIZE,"0"};
 int registers[REGISTER_COUNT] = {0};
 std::unordered_map<uint32_t, uint32_t> memory_map;
@@ -298,7 +298,8 @@ void initializeCaches() {
     }
 }
 void initializeSystem(int line_size1 , int l1_size, int l2_size, int l1_assoc, int l2_assoc, int l1_lat, int l2_lat, string repl_policy, int main_mem_lat) {
-    line_size = line_size1;
+    // Input config gives line size in words; internal cache logic uses bytes.
+    line_size = line_size1 * 4;
     l1_cache_size = l1_size;
     l2_cache_size = l2_size;
     associativity_l1 = l1_assoc;
@@ -463,15 +464,15 @@ int lw(int address, int core_id) {
     cache_l2_misses++;
     uint32_t block_start = address - offset;
     int l1 = get_replacement_way(l1_set);   
-    for(int i = 0; i < line_size; i++) {
-        l1_set[l1].line_data[i] = lw(block_start + i);
+    for (int i = 0; i < line_size; i++) {
+        l1_set[l1].line_data[i] = memory_main[block_start + i];
     }
     l1_set[l1].tag = l1_tag;
     l1_set[l1].valid = true;
     updateReplacement(l1_set, l1);
     int l2_replace = get_replacement_way(l2_set);
-    for (int i = 0; i <line_size; i++) {
-    l2_set[l2_replace].line_data[i] = lw(block_start + i);
+    for (int i = 0; i < line_size; i++) {
+        l2_set[l2_replace].line_data[i] = memory_main[block_start + i];
     }
     l2_set[l2_replace].tag = l2_tag;
     l2_set[l2_replace].valid = true;
@@ -523,15 +524,15 @@ void sw(int address, int value, int core_id) {
     memory_latency = main_memory_latency;
      uint32_t block_start = address - offset;
     int l1 = get_replacement_way(l1_set);   
-    for(int i = 0; i < line_size; i++) {
-        l1_set[l1].line_data[i] = lw(block_start + i);
+    for (int i = 0; i < line_size; i++) {
+        l1_set[l1].line_data[i] = memory_main[block_start + i];
     }
     l1_set[l1].tag = l1_tag;
     l1_set[l1].valid = true;
     updateReplacement(l1_set, l1);
     int l2_replace = get_replacement_way(l2_set);
-    for (int i = 0; i <line_size; i++) {
-    l2_set[l2_replace].line_data[i] = lw(block_start + i);
+    for (int i = 0; i < line_size; i++) {
+        l2_set[l2_replace].line_data[i] = memory_main[block_start + i];
     }
     l2_set[l2_replace].tag = l2_tag;
     l2_set[l2_replace].valid = true;
@@ -612,13 +613,19 @@ void printMemory() {
     cout << "L2 Cache Misses: " << cache_l2_misses << endl;
     cout << "Memory Accesses: " << memory_accesses << endl;
     for(int i=0; i<CORE_COUNT; i++){
-        cout<< "Hit Rate L1: " << (float)cache_l1_hits[i]/(cache_l1_hits[i]+cache_l1_misses[i]) * 100 << "%" << endl;
+        int l1_total = cache_l1_hits[i] + cache_l1_misses[i];
+        float hit_l1 = (l1_total == 0) ? 0.0f : (float)cache_l1_hits[i] / l1_total * 100.0f;
+        cout<< "Hit Rate L1: " << hit_l1 << "%" << endl;
     }
-    cout<< "Hit Rate L2: " << (float)cache_l2_hits/(memory_accesses) * 100 << "%" << endl;
+    float hit_l2 = (memory_accesses == 0) ? 0.0f : (float)cache_l2_hits / memory_accesses * 100.0f;
+    cout<< "Hit Rate L2: " << hit_l2 << "%" << endl;
    for(int i=0; i<CORE_COUNT; i++){
-        cout<< "Miss Rate L1: " << (float)cache_l1_misses[i]/(cache_l1_hits[i]+cache_l1_misses[i]) * 100 << "%" << endl;
+        int l1_total = cache_l1_hits[i] + cache_l1_misses[i];
+        float miss_l1 = (l1_total == 0) ? 0.0f : (float)cache_l1_misses[i] / l1_total * 100.0f;
+        cout<< "Miss Rate L1: " << miss_l1 << "%" << endl;
     }
-    cout<< "Miss Rate L2: " << (float)cache_l2_misses/(memory_accesses) * 100 << "%" << endl;
+    float miss_l2 = (memory_accesses == 0) ? 0.0f : (float)cache_l2_misses / memory_accesses * 100.0f;
+    cout<< "Miss Rate L2: " << miss_l2 << "%" << endl;
 }
 void printCaches() {
     cout << "        L1 Cache         \n";

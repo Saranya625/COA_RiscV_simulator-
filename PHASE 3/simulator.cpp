@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include<algorithm>
 #include <string>
+#include <cctype>
 #include "core.cpp"
 using namespace std;
 bool stalling;
@@ -17,8 +18,9 @@ bool check_sync_complete(vector<Core>& cores , int traget_address) {
     if (core.global_pc != traget_address) {
       return false;
     }
-    return true;
   }
+    return true;
+  
 }
 struct Specifications {
     bool data_forwarding;
@@ -101,6 +103,14 @@ bool parallel_sync(vector<Core>& cores){
         }
 
     }
+    return true ;
+}
+
+static string trim(const string &s) {
+    size_t start = s.find_first_not_of(" \t\r\n");
+    if (start == string::npos) return "";
+    size_t end = s.find_last_not_of(" \t\r\n");
+    return s.substr(start, end - start + 1);
 }
 
 void fetchInstruction(vector<Core>& cores) {  
@@ -184,7 +194,7 @@ void fetchInstruction(vector<Core>& cores) {
    
 }
 
-void parseAssembly(const std::string &filename, vector<Core>& cores) { 
+void parseAssembly(const std::string &filename) { 
     std::ifstream file(filename);
     if (!file) {
         std::cerr << "Error: Unable to open file " << filename << std::endl;
@@ -193,16 +203,15 @@ void parseAssembly(const std::string &filename, vector<Core>& cores) {
 
     std::string line;
     bool inTextSection = false, inDataSection = false;
-    int instructionIndex = 0;
-
     while (std::getline(file, line)) {
         size_t commentPos = line.find("#");
         if (commentPos != std::string::npos) line = line.substr(0, commentPos);
+        line = trim(line);
         if (line.empty()) continue;
 
         std::istringstream iss(line);
         std::string first, instr;
-        iss >> first;
+        if (!(iss >> first)) continue;
 
         if (first == ".data") {
             inTextSection = false;
@@ -215,9 +224,11 @@ void parseAssembly(const std::string &filename, vector<Core>& cores) {
         }
 
         if (inDataSection) {
-            if (first.back() == ':') {
+            string dataLabel;
+            if (!first.empty() && first.back() == ':') {
                 first.pop_back();
                 label_map[first] = std::vector<int>(CORE_COUNT, 0);
+                dataLabel = first;
                 if (!(iss >> instr)) continue;
             } else {
                 instr = first;
@@ -226,17 +237,20 @@ void parseAssembly(const std::string &filename, vector<Core>& cores) {
             std::vector<std::string> args;
             std::string arg;
             while (std::getline(iss, arg, ',')) {
-                arg.erase(0, arg.find_first_not_of(" \t"));
-                arg.erase(arg.find_last_not_of(" \t") + 1);
-                args.push_back(arg);
+                arg = trim(arg);
+                if (!arg.empty()) args.push_back(arg);
             }
 
             if (instr == ".word") {
+                if (dataLabel.empty()) {
+                    std::cerr << "Error: .word must follow a data label in line: " << line << std::endl;
+                    exit(1);
+                }
                 int size = args.size();
                 for (int i = 0; i < CORE_COUNT; i++) {
-                    int memoryAddress = allocate_memory(size * 4, i);
+                    int memoryAddress = allocate_memory(size, i);
                     cout<<"Memory Address: " << memoryAddress << endl;
-                    label_map[first][i] = memoryAddress;  // Store per-core base address
+                    label_map[dataLabel][i] = memoryAddress;  // Store per-core base address
                     for (size_t j = 0; j < args.size(); j++) {
                         int value = std::stoi(args[j]);
                         sw1(memoryAddress + (j * 4), value, i);
@@ -244,24 +258,24 @@ void parseAssembly(const std::string &filename, vector<Core>& cores) {
                 }
             }
         } else if (inTextSection) {
-            if (first.back() == ':') {
+            if (!first.empty() && first.back() == ':') {
                 first.pop_back();
                 label_map[first] = std::vector<int>(CORE_COUNT, instruction_size());
+                if (!(iss >> instr)) continue;
             } else {
                 instr = first;
-                std::vector<std::string> args;
-                std::string restOfLine;
-                std::getline(iss, restOfLine);
-                std::istringstream argStream(restOfLine);
-                std::string token;
-                while (std::getline(argStream, token, ',')) {
-                    token.erase(0, token.find_first_not_of(" \t"));
-                    token.erase(token.find_last_not_of(" \t") + 1);
-                    args.push_back(token);
-                }
-                store_instruction(instr, args);
-    
             }
+
+            std::vector<std::string> args;
+            std::string restOfLine;
+            std::getline(iss, restOfLine);
+            std::istringstream argStream(restOfLine);
+            std::string token;
+            while (std::getline(argStream, token, ',')) {
+                token = trim(token);
+                if (!token.empty()) args.push_back(token);
+            }
+            store_instruction(instr, args);
         }
     }
     
@@ -316,10 +330,12 @@ void executePipeline(vector<Core>& cores) {
 
 
 
-int main() {
+int main(int argc, char *argv[]) {
     std::vector<Core> cores;
     bool forwarding_option;
-    Specifications specs = parseSpecifications("specifications.txt");
+    string asm_file = "Sync.asm";
+    if (argc > 1) asm_file = argv[1];
+    Specifications specs = parseSpecifications("Specifications.txt");
     SP_memory spm(specs.L1_cache_size, specs.L1_latency, specs.L1_associativity);
 
     initializeSystem(specs.line_size, specs.L1_cache_size, specs.L2_cache_size,  specs.L1_associativity, specs.L2_associativity, specs.L1_latency, specs.L2_latency, specs.replacement_policy,specs.main_memory_latency);
@@ -331,7 +347,7 @@ int main() {
     for (const auto &entry : latencies) {
         std::cout << entry.first << " -> " << entry.second << " cycles\n";
     }
-    parseAssembly("assembly.asm", cores);
+    parseAssembly(asm_file);
     for (int i = 0; i < CORE_COUNT; i++) {
         cores.emplace_back(i, label_map, forwarding_option,latencies,spm,specs.main_memory_latency);
     }
@@ -347,7 +363,7 @@ int main() {
         
         double IPC = (double)core.number_instructions / core.clock_cycles;
         std::cout << "IPC: " << IPC << "\n";
-        //core.spm.sp_printMemory();
+        core.spm.sp_printMemory();
     }
     //printInstructionCache();
     //printCaches();
