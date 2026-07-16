@@ -14,10 +14,15 @@ You need a C++ compiler installed (MinGW-w64, MSVC, or WSL).
 
 ```bash
 cd "PHASE 3"
-g++ -std=c++17 -O2 simulator.cpp -o simulator.exe
+./build.ps1   # Windows PowerShell
+./build.sh    # Linux/macOS
 ```
 
-On Linux/macOS, use `-o simulator` instead of `-o simulator.exe`.
+Both scripts compile `main.cpp` plus every `.cpp` file under `src/` (the
+modularized simulator) into `simulator.exe` / `simulator`. If you'd rather
+compile by hand, see `PHASE 3/build.ps1` / `build.sh` for the exact file list,
+or fall back to the pre-refactor single-file build in `PHASE 3/legacy/`
+(`g++ -std=c++17 -O2 legacy/simulator.cpp -o simulator.exe`).
 
 Test JSON output:
 

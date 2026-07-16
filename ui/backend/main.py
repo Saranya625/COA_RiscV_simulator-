@@ -54,12 +54,12 @@ def build_hint() -> str:
         return (
             "Build the simulator first:\n"
             "  cd \"PHASE 3\"\n"
-            "  g++ -std=c++17 -O2 simulator.cpp -o simulator.exe"
+            "  .\\build.ps1"
         )
     return (
         "Build the simulator first:\n"
         "  cd \"PHASE 3\"\n"
-        "  g++ -std=c++17 -O2 simulator.cpp -o simulator"
+        "  ./build.sh"
     )
 
 

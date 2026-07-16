@@ -38,7 +38,7 @@ g++ -std=c++17 -O2 simulator.cpp -o simulator.exe
 
 # Phase 3 (reads Specifications.txt for cache/latency config)
 cd ..\"PHASE 3"
-g++ -std=c++17 -O2 simulator.cpp -o simulator.exe
+.\build.ps1
 .\simulator.exe Sync.asm          # try Cachetest.asm, test1.asm, assembly.asm
 ```
 
@@ -56,7 +56,7 @@ g++ -std=c++17 -O2 simulator.cpp -o simulator
 
 # Phase 3 (reads Specifications.txt for cache/latency config)
 cd "../PHASE 3"
-g++ -std=c++17 -O2 simulator.cpp -o simulator
+./build.sh
 ./simulator Sync.asm              # try Cachetest.asm, test1.asm, assembly.asm
 ```
 
@@ -66,7 +66,7 @@ A React + FastAPI front end for the Phase 3 simulator. It needs **3 terminals**.
 **Terminal 1 — build the simulator (with JSON output):**
 ```bash
 cd "PHASE 3"
-g++ -std=c++17 -O2 simulator.cpp -o simulator.exe   # use -o simulator on Linux/macOS
+./build.ps1   # Windows PowerShell; use ./build.sh on Linux/macOS
 ```
 
 **Terminal 2 — start the backend:**
@@ -96,6 +96,14 @@ In this phase, instruction pipelining was introduced to improve performance. The
 * A shared instruction fetch unit with independent decode, execute, memory, and write-back stages for each core.
 * Optional data forwarding and stall detection logic.
 * Final statistics include stalls and Instructions Per Cycle (IPC).
+
+### Phase 3 code layout
+`PHASE 3/` is modularized: `main.cpp` is a thin CLI entry point, and the actual
+logic lives under `PHASE 3/src/` (`memory/`, `pipeline/`, `core/`, `parser/`,
+`sim/`, `output/`, `config/`), one header/implementation pair per concern.
+Build with `build.ps1` (Windows) or `build.sh` (Linux/macOS/WSL), which
+compile `main.cpp` together with every `.cpp` under `src/`. The original
+single-file version is preserved unchanged in `PHASE 3/legacy/` as a fallback.
 
 ### Phase 3: Cache Hierarchy
 #### A multi-level cache system was implemented:
