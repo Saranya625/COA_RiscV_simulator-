@@ -37,6 +37,7 @@ def find_simulator() -> Path | None:
 class RunRequest(BaseModel):
     assembly: str = Field(..., min_length=1)
     specifications: str = Field(..., min_length=1)
+    include_trace: bool = False
 
 
 app = FastAPI(title="RISC-V Simulator API", version="1.0.0")
@@ -103,6 +104,8 @@ def run_simulation(request: RunRequest):
             "--specs",
             str(specs_path),
         ]
+        if request.include_trace:
+            command.append("--trace")
 
         try:
             completed = subprocess.run(

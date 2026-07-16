@@ -59,19 +59,31 @@ Example request:
 ```json
 {
   "assembly": ".text\nadd x1,x2,x3\n",
-  "specifications": "Specifications{\n    data_forwarding:1\n    ...\n}\n"
+  "specifications": "Specifications{\n    data_forwarding:1\n    ...\n}\n",
+  "include_trace": false
 }
 ```
+
+Set `include_trace: true` to also get a `trace` array in the response — one
+entry per clock cycle, with every core's pipeline-stage contents, full
+register file, and any memory writes for that cycle. This is what powers
+the **Step-by-step** tab in the UI (see below) and is passed straight
+through to `simulator.exe --json --trace`.
 
 ## UI features
 
 - Assembly editor
 - Specifications editor
-- Run simulation
+- Run simulation (with an optional "Record step-by-step trace" toggle)
 - Overview: IPC, cycles, stalls per core
 - Registers view per core
 - Memory and scratchpad dump
 - Cache hit/miss statistics
+- **Step-by-step**: only shown after a run with tracing enabled. Scrub
+  through the recorded clock cycles with Prev/Next/Play controls or the
+  slider; for the selected cycle you can see which instruction is in each
+  pipeline stage per core, which registers just changed (highlighted), and
+  which memory words were written.
 
 ## Notes
 

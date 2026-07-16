@@ -130,6 +130,10 @@ void sw(int address, int value, int core_id) {
         exit(1);
     }
 
+    // Write-through: main memory is always updated immediately, regardless
+    // of whether the write hits in a cache.
+    std::memcpy(&memory_main[address], &value, sizeof(int));
+
     uint32_t offset = getOffset(address);
     uint32_t l1_idx = getL1Index(address);
     uint32_t l1_tag = getTag_L1(address);
@@ -140,31 +144,50 @@ void sw(int address, int value, int core_id) {
         if (l1_set[way].valid && l1_set[way].tag == l1_tag) {
             std::memcpy(&l1_set[way].line_data[offset], &value, sizeof(int));
             updateReplacement(l1_set, way);
-            break;  
+            cache_l1_hits[core_id]++;
+            memory_latency = l1_latency;
+            return;
         }
     }
+    cache_l1_misses[core_id]++;
+
     uint32_t l2_idx = getL2Index(address);
     uint32_t l2_tag = getTag_L2(address);
     auto& l2_set = l2_cache[l2_idx];
     if (l2_set.empty()) l2_set.resize(associativity_l2);
+    uint32_t block_start = address - offset;
 
     for (int way = 0; way < associativity_l2; ++way) {
         if (l2_set[way].valid && l2_set[way].tag == l2_tag) {
             std::memcpy(&l2_set[way].line_data[offset], &value, sizeof(int));
             updateReplacement(l2_set, way);
-            break;
+            cache_l2_hits++;
+            memory_latency = l2_latency;
+
+            // Bring the now up-to-date L2 line into L1 too.
+            int l1_replace = get_replacement_way(l1_set);
+            for (int i = 0; i < line_size; i++) {
+                l1_set[l1_replace].line_data[i] = memory_main[block_start + i];
+            }
+            l1_set[l1_replace].tag = l1_tag;
+            l1_set[l1_replace].valid = true;
+            updateReplacement(l1_set, l1_replace);
+            return;
         }
     }
-    std::memcpy(&memory_main[address], &value, sizeof(int));
+
+    // Miss in both L1 and L2: fetch the block from main memory into both.
+    cache_l2_misses++;
     memory_latency = main_memory_latency;
-     uint32_t block_start = address - offset;
-    int l1 = get_replacement_way(l1_set);   
+
+    int l1 = get_replacement_way(l1_set);
     for (int i = 0; i < line_size; i++) {
         l1_set[l1].line_data[i] = memory_main[block_start + i];
     }
     l1_set[l1].tag = l1_tag;
     l1_set[l1].valid = true;
     updateReplacement(l1_set, l1);
+
     int l2_replace = get_replacement_way(l2_set);
     for (int i = 0; i < line_size; i++) {
         l2_set[l2_replace].line_data[i] = memory_main[block_start + i];
@@ -172,7 +195,6 @@ void sw(int address, int value, int core_id) {
     l2_set[l2_replace].tag = l2_tag;
     l2_set[l2_replace].valid = true;
     updateReplacement(l2_set, l2_replace);
-
 }
 
 void printCaches() {

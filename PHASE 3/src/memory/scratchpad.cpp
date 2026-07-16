@@ -1,17 +1,26 @@
 #include "scratchpad.hpp"
 #include <cstring>
 #include <iostream>
+#include <cstdlib>
 
 SP_memory::SP_memory(int size, int latency, int associativity)
     : size_sp(size), latency_sp(latency), associativity_sp(associativity), sp_memory(size, 0) {}
 
 int SP_memory::lw_spm(int address) {
+    if (address < 0 || address + 3 >= size_sp) {
+        std::cerr << "Error: Scratchpad read out of bounds at address " << address << "\n";
+        exit(1);
+    }
     int value;
     std::memcpy(&value, &sp_memory[address], sizeof(int));
     return value;
 }
 
 void SP_memory::sw_spm(int address, int value) {
+    if (address < 0 || address + 3 >= size_sp) {
+        std::cerr << "Error: Scratchpad write out of bounds at address " << address << "\n";
+        exit(1);
+    }
     std::memcpy(&sp_memory[address], &value, sizeof(int));
 }
 

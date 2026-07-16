@@ -22,7 +22,59 @@ static string jsonEscape(const string &value) {
     return escaped;
 }
 
-void printJsonResults(const vector<Core> &cores, const Specifications &specs) {
+static void printStageJson(const char *key, const StageSnapshot &stage, bool last) {
+    cout << "          \"" << key << "\": {\"valid\": " << (stage.valid ? "true" : "false");
+    if (stage.valid) {
+        cout << ", \"instruction\": \"" << jsonEscape(stage.instruction) << "\", \"args\": [";
+        for (size_t a = 0; a < stage.args.size(); ++a) {
+            if (a > 0) cout << ", ";
+            cout << "\"" << jsonEscape(stage.args[a]) << "\"";
+        }
+        cout << "]";
+    }
+    cout << "}" << (last ? "\n" : ",\n");
+}
+
+static void printTraceJson(const vector<CycleSnapshot> &trace) {
+    cout << "  \"trace\": [\n";
+    for (size_t i = 0; i < trace.size(); ++i) {
+        const CycleSnapshot &snap = trace[i];
+        cout << "    {\n";
+        cout << "      \"cycle\": " << snap.cycle << ",\n";
+        cout << "      \"cores\": [\n";
+        for (size_t c = 0; c < snap.cores.size(); ++c) {
+            const CoreCycleSnapshot &cc = snap.cores[c];
+            cout << "        {\n";
+            cout << "          \"id\": " << cc.core_id << ",\n";
+            cout << "          \"pc\": " << cc.pc << ",\n";
+            printStageJson("if_id", cc.if_id, false);
+            printStageJson("id_ex", cc.id_ex, false);
+            printStageJson("ex_mem", cc.ex_mem, false);
+            printStageJson("mem_wb", cc.mem_wb, false);
+            printStageJson("wb", cc.wb, false);
+            cout << "          \"registers\": [";
+            for (size_t r = 0; r < cc.registers.size(); ++r) {
+                if (r > 0) cout << ", ";
+                cout << cc.registers[r];
+            }
+            cout << "]\n";
+            cout << "        }" << (c + 1 < snap.cores.size() ? ",\n" : "\n");
+        }
+        cout << "      ],\n";
+        cout << "      \"memory_changes\": [";
+        for (size_t m = 0; m < snap.memory_changes.size(); ++m) {
+            if (m > 0) cout << ", ";
+            cout << "{\"address\": " << snap.memory_changes[m].address
+                 << ", \"value\": " << snap.memory_changes[m].value << "}";
+        }
+        cout << "]\n";
+        cout << "    }" << (i + 1 < trace.size() ? ",\n" : "\n");
+    }
+    cout << "  ]\n";
+}
+
+void printJsonResults(const vector<Core> &cores, const Specifications &specs,
+                       const vector<CycleSnapshot> *trace) {
     cout << "{\n";
     cout << "  \"success\": true,\n";
     cout << "  \"config\": {\n";
@@ -103,12 +155,16 @@ void printJsonResults(const vector<Core> &cores, const Specifications &specs) {
         cout << fixed << setprecision(2) << rate;
     }
     cout << "],\n";
-  float l2_hit_rate = memory_accesses == 0 ? 0.0f
-      : static_cast<float>(cache_l2_hits) / memory_accesses * 100.0f;
-  float l2_miss_rate = memory_accesses == 0 ? 0.0f
-      : static_cast<float>(cache_l2_misses) / memory_accesses * 100.0f;
+  int l2_total = cache_l2_hits + cache_l2_misses;
+  float l2_hit_rate = l2_total == 0 ? 0.0f
+      : static_cast<float>(cache_l2_hits) / l2_total * 100.0f;
+  float l2_miss_rate = l2_total == 0 ? 0.0f
+      : static_cast<float>(cache_l2_misses) / l2_total * 100.0f;
     cout << "    \"l2_hit_rate\": " << fixed << setprecision(2) << l2_hit_rate << ",\n";
     cout << "    \"l2_miss_rate\": " << fixed << setprecision(2) << l2_miss_rate << "\n";
-    cout << "  }\n";
+    cout << "  }" << (trace ? ",\n" : "\n");
+    if (trace) {
+        printTraceJson(*trace);
+    }
     cout << "}\n";
 }

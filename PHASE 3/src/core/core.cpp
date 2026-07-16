@@ -348,6 +348,7 @@ int Core::getRegisterIndex(const std::string &reg) {
 
             else if (instr == "jal") {
                 pipeline.ID_EX.rd = getRegisterIndex(args[0]);  // Destination register
+                pipeline.ID_EX.rd_value = pipeline.ID_EX.pc + 1;  // Link: return address is the next instruction
                 if (label_map.find(args[1]) != label_map.end()) {
                     pipeline.ID_EX.offset = label_map[args[1]][core_id];  // Target label address
                 } else {
@@ -463,7 +464,7 @@ int Core::getRegisterIndex(const std::string &reg) {
                 pipeline.EX_MEM.rd_value = rs1_val << imm;
             }
              else if (instr == "srli") {
-            pipeline.EX_MEM.rd_value = imm >> rs1_val;
+            pipeline.EX_MEM.rd_value = rs1_val >> imm;
             }  
             else if (instr == "lw"|| instr == "lw_spm") {
             }
@@ -474,7 +475,7 @@ int Core::getRegisterIndex(const std::string &reg) {
                 pipeline.EX_MEM.rd_value = rs1_val & rs2_val;
             }      
             else if( instr == "or" ){
-                pipeline.EX_MEM.rd_value = rs1_val || rs2_val;
+                pipeline.EX_MEM.rd_value = rs1_val | rs2_val;
             }    
             else if( instr == "xor" ){
                 pipeline.EX_MEM.rd_value = rs1_val ^ rs2_val;
@@ -547,6 +548,20 @@ int Core::getRegisterIndex(const std::string &reg) {
             }
             else if (instr == "blt") {
                 if (rs1_val < rs2_val) {
+                    std::string target_label = pipeline.EX_MEM.args[2];
+                    if (label_map.find(target_label) != label_map.end()) {
+                        int new_pc = label_map[target_label][core_id];
+                        global_pc = new_pc ; // Adjust for fetch increment
+                        pipeline.ID_EX.valid_instruction=false;
+
+                    } else {
+                        std::cerr << "[ERROR] Label " << target_label << " not found!\n";
+                        exit(EXIT_FAILURE);
+                    }
+                }
+            }
+            else if (instr == "bge") {
+                if (rs1_val >= rs2_val) {
                     std::string target_label = pipeline.EX_MEM.args[2];
                     if (label_map.find(target_label) != label_map.end()) {
                         int new_pc = label_map[target_label][core_id];
@@ -690,7 +705,7 @@ int Core::getRegisterIndex(const std::string &reg) {
             auto &instr = pipeline.WB_Return.instruction;
             auto &args= pipeline.WB_Return.args;
 
-            if (instr == "add" || instr == "sub" || instr == "addi" || instr == "slli" || instr == "lw" || instr == "li" || instr == "la"|| instr=="mul"||instr == "and"||instr=="srli"||instr == "and"||instr=="or"||instr=="xor") {
+            if (instr == "add" || instr == "sub" || instr == "addi" || instr == "slli" || instr == "lw" || instr == "li" || instr == "la"|| instr=="mul"||instr == "and"||instr=="srli"||instr == "and"||instr=="or"||instr=="xor"||instr=="jal") {
                 registers[getRegisterIndex(args[0])] = pipeline.WB_Return.rd_value;
             }
         pipeline.WB_Return.valid_data = true;

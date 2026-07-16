@@ -98,6 +98,22 @@ textarea {
   cursor: wait;
 }
 
+.trace-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #c7d3ef;
+  cursor: pointer;
+}
+
+.trace-toggle input {
+  accent-color: #7c9cff;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
 .layout {
   display: grid;
   grid-template-columns: 1.05fr 0.95fr;
@@ -273,6 +289,102 @@ th {
 
 .memory-section h3 {
   margin: 18px 0 10px;
+}
+
+.step-view h3 {
+  margin: 18px 0 10px;
+}
+
+.step-hint {
+  margin: 0 0 12px;
+  color: #9aaacc;
+  font-size: 0.85rem;
+}
+
+.stepper-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #0d1324;
+  border: 1px solid rgba(142, 160, 199, 0.18);
+}
+
+.stepper-controls button {
+  border: 1px solid rgba(142, 160, 199, 0.22);
+  background: transparent;
+  color: #c7d3ef;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.stepper-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stepper-controls .play-btn {
+  padding: 8px 16px;
+}
+
+.stepper-controls .run-all-btn {
+  border: 1px solid rgba(240, 179, 90, 0.4);
+  background: rgba(240, 179, 90, 0.14);
+  color: #ffd18a;
+  border-radius: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.stepper-controls .run-all-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stepper-controls input[type="range"] {
+  flex: 1;
+  min-width: 120px;
+  accent-color: #7c9cff;
+}
+
+.step-counter {
+  color: #9aaacc;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.pipeline-table th,
+.pipeline-table td {
+  white-space: nowrap;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.85rem;
+}
+
+.pipeline-row {
+  cursor: pointer;
+}
+
+.pipeline-row:hover {
+  background: rgba(124, 156, 255, 0.08);
+}
+
+.pipeline-row.selected {
+  background: rgba(124, 156, 255, 0.16);
+}
+
+.stage-empty {
+  color: #5c6a8c;
+}
+
+.register-cell.changed {
+  border-color: #5ad1a5;
+  background: rgba(90, 209, 165, 0.14);
+  box-shadow: 0 0 0 1px rgba(90, 209, 165, 0.35);
 }
 
 @media (max-width: 1080px) {

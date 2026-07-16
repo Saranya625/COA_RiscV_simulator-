@@ -8,6 +8,7 @@ struct PipelineStage {
     int rs1, rs2, rd;
     int rs1_value= 0,rs2_value= 0,rd_value=0;
     int offset,address;
+    int pc = 0; // instruction-index PC the instruction was fetched at (used by jal to compute the link/return address)
     bool valid_instruction, valid_data;
     bool hazard_detected;
     bool stalled;

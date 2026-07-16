@@ -48,13 +48,14 @@ void printMemory() {
         float hit_l1 = (l1_total == 0) ? 0.0f : (float)cache_l1_hits[i] / l1_total * 100.0f;
         cout<< "Hit Rate L1: " << hit_l1 << "%" << endl;
     }
-    float hit_l2 = (memory_accesses == 0) ? 0.0f : (float)cache_l2_hits / memory_accesses * 100.0f;
+    int l2_total = cache_l2_hits + cache_l2_misses;
+    float hit_l2 = (l2_total == 0) ? 0.0f : (float)cache_l2_hits / l2_total * 100.0f;
     cout<< "Hit Rate L2: " << hit_l2 << "%" << endl;
    for(int i=0; i<CORE_COUNT; i++){
         int l1_total = cache_l1_hits[i] + cache_l1_misses[i];
         float miss_l1 = (l1_total == 0) ? 0.0f : (float)cache_l1_misses[i] / l1_total * 100.0f;
         cout<< "Miss Rate L1: " << miss_l1 << "%" << endl;
     }
-    float miss_l2 = (memory_accesses == 0) ? 0.0f : (float)cache_l2_misses / memory_accesses * 100.0f;
+    float miss_l2 = (l2_total == 0) ? 0.0f : (float)cache_l2_misses / l2_total * 100.0f;
     cout<< "Miss Rate L2: " << miss_l2 << "%" << endl;
 }

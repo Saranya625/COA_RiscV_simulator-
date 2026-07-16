@@ -40,6 +40,9 @@ g++ -std=c++17 -O2 simulator.cpp -o simulator.exe
 cd ..\"PHASE 3"
 .\build.ps1
 .\simulator.exe Sync.asm          # try Cachetest.asm, test1.asm, assembly.asm
+
+# Step through the simulation one clock cycle at a time
+.\simulator.exe --step Sync.asm
 ```
 
 **Linux/macOS:**
@@ -58,7 +61,24 @@ g++ -std=c++17 -O2 simulator.cpp -o simulator
 cd "../PHASE 3"
 ./build.sh
 ./simulator Sync.asm              # try Cachetest.asm, test1.asm, assembly.asm
+
+# Step through the simulation one clock cycle at a time
+./simulator --step Sync.asm
 ```
+
+### Step-by-step execution (Phase 3 CLI)
+Passing `--step` (or `-s`) to the Phase 3 `simulator` binary pauses after every
+clock cycle instead of running straight to completion. At each pause it
+prints, for every core: which instruction currently sits in each pipeline
+stage (IF_ID/ID_EX/EX_MEM/MEM_WB/WB), which registers changed this cycle
+(with their old -> new values), and any memory words that changed. Then it
+waits for input:
+* **Enter** — advance exactly one more cycle.
+* **`r` + Enter** — stop pausing and run the rest of the program to completion.
+* **`q` + Enter** — stop the simulation immediately.
+
+`--step` is ignored when combined with `--json` (the JSON output used by the
+Web UI needs to stay pure machine-readable output).
 
 ### Run the Web UI (Phase 3 only)
 A React + FastAPI front end for the Phase 3 simulator. It needs **3 terminals**.

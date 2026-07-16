@@ -33,8 +33,9 @@ void fetchInstruction(vector<Core>& cores) {
   
     for (Core &core : cores) {      
         if (core.pipeline.fetch_stall) {
-            core.pipeline.fetch_stall=true;
-            return;
+            // Only this core's fetch is skipped; other cores have independent
+            // pipelines/PCs and must still be able to fetch this cycle.
+            continue;
         }
         if(core.barrier_sync == true){
             if(core.global_pc != 0) {
@@ -86,6 +87,7 @@ void fetchInstruction(vector<Core>& cores) {
         instr = fetch_instruction(core.pc,core.core_id);
         core.pipeline.IF_ID.instruction = instr ;
         core.pipeline.IF_ID.args = args;
+        core.pipeline.IF_ID.pc = core.pc;
         core.pipeline.IF_ID.valid_instruction = true;
         core.pipeline.IF_ID.valid_data = false;
         core.pc++;

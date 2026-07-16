@@ -12,11 +12,15 @@ export async function fetchExamples() {
   return response.json();
 }
 
-export async function runSimulation(assembly, specifications) {
+export async function runSimulation(assembly, specifications, includeTrace = false) {
   const response = await fetch(`${API_BASE}/api/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ assembly, specifications }),
+    body: JSON.stringify({
+      assembly,
+      specifications,
+      include_trace: includeTrace,
+    }),
   });
 
   const payload = await response.json().catch(() => ({}));

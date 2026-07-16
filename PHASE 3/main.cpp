@@ -20,6 +20,8 @@
 int main(int argc, char *argv[]) {
     std::vector<Core> cores;
     bool json_mode = false;
+    bool step_mode = false;
+    bool trace_mode = false;
     std::string asm_file = "Sync.asm";
     std::string specs_file = "Specifications.txt";
 
@@ -27,6 +29,10 @@ int main(int argc, char *argv[]) {
         std::string arg = argv[i];
         if (arg == "--json") {
             json_mode = true;
+        } else if (arg == "--step" || arg == "-s") {
+            step_mode = true;
+        } else if (arg == "--trace") {
+            trace_mode = true;
         } else if (arg == "--specs" && i + 1 < argc) {
             specs_file = argv[++i];
         } else if (arg == "--asm" && i + 1 < argc) {
@@ -34,6 +40,22 @@ int main(int argc, char *argv[]) {
         } else if (arg[0] != '-') {
             asm_file = arg;
         }
+    }
+
+    if (json_mode && step_mode) {
+        std::cerr << "Warning: --step is ignored together with --json (JSON output must stay "
+                     "machine-readable); running to completion instead.\n";
+        step_mode = false;
+    }
+
+    if (trace_mode && !json_mode) {
+        std::cerr << "Warning: --trace only applies together with --json; ignoring.\n";
+        trace_mode = false;
+    }
+
+    if (trace_mode && step_mode) {
+        std::cerr << "Warning: --trace and --step cannot be combined; ignoring --step.\n";
+        step_mode = false;
     }
 
     Specifications specs = parseSpecifications(specs_file);
@@ -59,10 +81,11 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < CORE_COUNT; i++) {
         cores.emplace_back(i, label_map, forwarding_option, latencies, spm, specs.main_memory_latency);
     }
-    executePipeline(cores);
+    std::vector<CycleSnapshot> trace;
+    executePipeline(cores, step_mode, trace_mode ? &trace : nullptr);
 
     if (json_mode) {
-        printJsonResults(cores, specs);
+        printJsonResults(cores, specs, trace_mode ? &trace : nullptr);
         return 0;
     }
 

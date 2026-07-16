@@ -22,7 +22,8 @@ memory/       The whole memory hierarchy:
 pipeline/     PipelineStage struct + Pipeline (stage shifting/stalling)
 core/         Core class: decode/execute/memory/writeback stages
 parser/       parseAssembly() + label_map
-sim/          fetchInstruction()/executePipeline() — the run loop
+sim/          fetchInstruction()/executePipeline() — the run loop, with an
+                optional interactive `--step` mode (see below)
 output/       JSON reporter (used by the UI) and human-readable text reporter
 ```
 
@@ -46,3 +47,27 @@ output/       JSON reporter (used by the UI) and human-readable text reporter
 From the `PHASE 3` folder, run `./build.ps1` (Windows) or `./build.sh`
 (Linux/macOS/WSL) — see the scripts for the exact `g++` invocation. The
 pre-refactor single-file version still exists, untouched, in `../legacy/`.
+
+## Step-by-step mode
+`executePipeline(cores, step_mode, trace_out)` in `sim/simulator_engine.cpp`
+takes two optional extras, both built on the same per-cycle snapshot helper
+(`buildCycleSnapshot`, defined in `trace.hpp`'s `CycleSnapshot`/
+`CoreCycleSnapshot`/`StageSnapshot` types) so the two modes never disagree
+about what "this cycle's state" means:
+
+- **`--step`/`-s` (interactive CLI)** — `step_mode = true`. The run loop
+  pauses after every clock cycle and prints a diff-style report (pipeline
+  stage contents per core, changed registers, changed memory words) before
+  waiting on stdin for `Enter` (step once more), `r` (run to completion) or
+  `q` (stop early).
+- **`--trace` (Web UI)** — requires `--json`. Instead of pausing, every
+  cycle's snapshot is appended to a `vector<CycleSnapshot>` which
+  `json_reporter.cpp` serializes as a `"trace"` array in the JSON output.
+  The UI backend forwards this flag when the frontend's request sets
+  `include_trace: true`, and the React "Step-by-step" tab scrubs through
+  the resulting array — no live process/WebSocket needed since the whole
+  run is captured up front.
+
+Both modes are thin wrappers around the existing cycle loop — no changes to
+pipeline/hazard/cache logic were needed, since `Core`/`Pipeline` state is
+fully readable between cycles.
