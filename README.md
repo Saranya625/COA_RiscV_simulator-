@@ -1,28 +1,89 @@
 # RISC-V Simulator
 
-### To run :
-```
+## How to Run
+
+### Prerequisites
+You need a **C++ compiler** for every phase. The Web UI additionally needs **Python 3.9+** and **Node.js 18+**.
+
+- **Windows:** install MinGW-w64 (bundles `g++`). Easiest via winget, then **restart your terminal**:
+  ```powershell
+  winget install -e --id BrechtSanders.WinLibs.POSIX.UCRT
+  g++ --version   # confirm it works in a NEW terminal
+  ```
+  If a new terminal still says `g++ is not recognized`, add the install folder to PATH for the session (adjust the path to match your install):
+  ```powershell
+  $env:Path = "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\bin;" + $env:Path
+  ```
+- **Linux/macOS:** `g++` usually ships with `build-essential` (Linux) or Xcode Command Line Tools (macOS).
+
+### Clone the repository
+```bash
 git clone https://github.com/Saranya625/COA_RiscV_simulator-.git
 cd COA_RiscV_simulator-
-
-#for phase 1
-cd Final_final
-g++ simulator.cpp
-./a.out assembly.asm #(any other asm files)
-
-#for phase 2
-cd PHASE_2
-g++ simulator.cpp
-./a.out assembly.asm #(any other asm files)
-
-#for phase 2
-cd 'PHASE 3'
-g++ simulator.cpp
-./a.out assembly.asm #(any other asm files)
-
-
-
 ```
+
+### Run the command-line simulator
+
+**Windows (PowerShell):**
+```powershell
+# Phase 1
+cd Final_final
+g++ -std=c++17 -O2 simulator.cpp -o simulator.exe
+.\simulator.exe assembly.asm      # or any other .asm file
+
+# Phase 2
+cd ..\PHASE_2
+g++ -std=c++17 -O2 simulator.cpp -o simulator.exe
+.\simulator.exe assembly.asm      # or any other .asm file
+
+# Phase 3 (reads Specifications.txt for cache/latency config)
+cd ..\"PHASE 3"
+g++ -std=c++17 -O2 simulator.cpp -o simulator.exe
+.\simulator.exe Sync.asm          # try Cachetest.asm, test1.asm, assembly.asm
+```
+
+**Linux/macOS:**
+```bash
+# Phase 1
+cd Final_final
+g++ -std=c++17 -O2 simulator.cpp -o simulator
+./simulator assembly.asm          # or any other .asm file
+
+# Phase 2
+cd ../PHASE_2
+g++ -std=c++17 -O2 simulator.cpp -o simulator
+./simulator assembly.asm          # or any other .asm file
+
+# Phase 3 (reads Specifications.txt for cache/latency config)
+cd "../PHASE 3"
+g++ -std=c++17 -O2 simulator.cpp -o simulator
+./simulator Sync.asm              # try Cachetest.asm, test1.asm, assembly.asm
+```
+
+### Run the Web UI (Phase 3 only)
+A React + FastAPI front end for the Phase 3 simulator. It needs **3 terminals**.
+
+**Terminal 1 — build the simulator (with JSON output):**
+```bash
+cd "PHASE 3"
+g++ -std=c++17 -O2 simulator.cpp -o simulator.exe   # use -o simulator on Linux/macOS
+```
+
+**Terminal 2 — start the backend:**
+```bash
+cd ui/backend
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+**Terminal 3 — start the frontend:**
+```bash
+cd ui/frontend
+npm install
+npm run dev
+```
+
+Then open <http://localhost:5173>. See [`ui/README.md`](ui/README.md) for API details and UI features.
 
 
 ### Phase 1: Multi-Core RISC-V Simulator

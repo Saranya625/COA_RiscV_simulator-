@@ -3,9 +3,10 @@
 #include <sstream>
 #include <vector>
 #include <unordered_map>
-#include<algorithm>
+#include <algorithm>
 #include <string>
 #include <cctype>
+#include <iomanip>
 #include "core.cpp"
 using namespace std;
 bool stalling;
@@ -114,7 +115,6 @@ static string trim(const string &s) {
 }
 
 void fetchInstruction(vector<Core>& cores) {  
-    cout << "Instruction size: " << instruction_size() << endl;
     bool branch_taken = false;
 
     string instr ;
@@ -122,14 +122,12 @@ void fetchInstruction(vector<Core>& cores) {
   
     for (Core &core : cores) {      
         if (core.pipeline.fetch_stall) {
-            std::cout << "[Core " << core.core_id << "] Fetch Stalled, skipping instruction fetch.\n";
             core.pipeline.fetch_stall=true;
             return;
         }
         if(core.barrier_sync == true){
             if(core.global_pc != 0) {
                 if (core.cid_val == -1) {
-                std::cout << "[Core " << core.core_id << "] Branching to PC: " << core.global_pc << "\n";
                 core.pc = core.global_pc;
                 core.global_pc = 0;
                 branch_taken = true;
@@ -149,9 +147,7 @@ void fetchInstruction(vector<Core>& cores) {
         }
     }        
         if (core.global_pc != 0) {
-            cout<<"branch started.."<<endl;
             if (core.cid_val == -1) {
-                std::cout << "[Core " << core.core_id << "] Branching to PC: " << core.global_pc << "\n";
                 core.pc = core.global_pc;
                 core.global_pc = 0;
                 branch_taken = true;
@@ -159,7 +155,6 @@ void fetchInstruction(vector<Core>& cores) {
             }
             if (core.core_id == core.cid_val) {
                 core.pc = core.global_pc;
-                std::cout << "[Core " << core.core_id << "] Branching to PC: " << core.global_pc << "\n";
                 core.global_pc = 0;
                 branch_taken = true; 
                           
@@ -168,7 +163,6 @@ void fetchInstruction(vector<Core>& cores) {
     }  
         if (core.pc >= instruction_size() ) {
         if(core.pipeline.IF_ID.valid_instruction | core.pipeline.ID_EX.valid_instruction | core.pipeline.EX_MEM.valid_instruction | core.pipeline.MEM_WB.valid_instruction | core.pipeline.WB_Return.valid_instruction){
-        std::cout << "No more instructions to fetch\n";
         core.no_instructions_fetch=true;
         }
         else{
@@ -186,8 +180,6 @@ void fetchInstruction(vector<Core>& cores) {
         core.pc++;
         core.fetch_latency=fetch_latency;
         parallel_sync(cores);
-        cout<<"fetch latency of core "<< core.core_id<<"is"<<core.fetch_latency<<endl;
-
      }
           
     }
@@ -249,7 +241,6 @@ void parseAssembly(const std::string &filename) {
                 int size = args.size();
                 for (int i = 0; i < CORE_COUNT; i++) {
                     int memoryAddress = allocate_memory(size, i);
-                    cout<<"Memory Address: " << memoryAddress << endl;
                     label_map[dataLabel][i] = memoryAddress;  // Store per-core base address
                     for (size_t j = 0; j < args.size(); j++) {
                         int value = std::stoi(args[j]);
@@ -282,20 +273,16 @@ void parseAssembly(const std::string &filename) {
 }
 
 void executePipeline(vector<Core>& cores) {
-    std::cout << "Running pipeline for all cores with a shared fetch unit...\n";
     bool running = true;
     int pc = 0;  
 
     while (running) {
-  
-        std::cout << "\n====== [Clock Cycle: " << cores[0].clock_cycles + 1 << "] ======" << std::endl;
         bool fetch_stall = false; 
         for (Core &core : cores) {
             core.writeBack();
             core.memoryStage();
             core.executeStage();
             core.decodeInstruction();
-            cout<<"/////////////"<<endl;
         }
          fetchInstruction(cores);
         for (Core &core : cores) {
@@ -328,32 +315,160 @@ void executePipeline(vector<Core>& cores) {
     }
 }
 
+static string jsonEscape(const string &value) {
+    string escaped;
+    escaped.reserve(value.size());
+    for (char ch : value) {
+        switch (ch) {
+            case '"': escaped += "\\\""; break;
+            case '\\': escaped += "\\\\"; break;
+            case '\n': escaped += "\\n"; break;
+            case '\r': escaped += "\\r"; break;
+            case '\t': escaped += "\\t"; break;
+            default: escaped += ch; break;
+        }
+    }
+    return escaped;
+}
 
+static void printJsonResults(const vector<Core> &cores, const Specifications &specs) {
+    cout << "{\n";
+    cout << "  \"success\": true,\n";
+    cout << "  \"config\": {\n";
+    cout << "    \"data_forwarding\": " << (specs.data_forwarding ? "true" : "false") << ",\n";
+    cout << "    \"replacement_policy\": \"" << jsonEscape(specs.replacement_policy) << "\",\n";
+    cout << "    \"line_size\": " << specs.line_size << ",\n";
+    cout << "    \"L1_cache_size\": " << specs.L1_cache_size << ",\n";
+    cout << "    \"L2_cache_size\": " << specs.L2_cache_size << ",\n";
+    cout << "    \"L1_associativity\": " << specs.L1_associativity << ",\n";
+    cout << "    \"L2_associativity\": " << specs.L2_associativity << ",\n";
+    cout << "    \"L1_latency\": " << specs.L1_latency << ",\n";
+    cout << "    \"L2_latency\": " << specs.L2_latency << ",\n";
+    cout << "    \"main_memory_latency\": " << specs.main_memory_latency << "\n";
+    cout << "  },\n";
+    cout << "  \"cores\": [\n";
+    for (size_t i = 0; i < cores.size(); ++i) {
+        const Core &core = cores[i];
+        double ipc = core.clock_cycles == 0 ? 0.0
+            : static_cast<double>(core.number_instructions) / core.clock_cycles;
+        cout << "    {\n";
+        cout << "      \"id\": " << core.core_id << ",\n";
+        cout << "      \"clock_cycles\": " << core.clock_cycles << ",\n";
+        cout << "      \"stalls\": " << core.pipeline.stalls << ",\n";
+        cout << "      \"instructions\": " << core.number_instructions << ",\n";
+        cout << "      \"ipc\": " << fixed << setprecision(4) << ipc << ",\n";
+        cout << "      \"registers\": [";
+        for (int r = 0; r < REGISTER_COUNT; ++r) {
+            if (r > 0) cout << ", ";
+            cout << core.registers[r];
+        }
+        cout << "],\n";
+        cout << "      \"scratchpad\": [";
+        bool firstSp = true;
+        for (int addr = 0; addr < core.spm.size_sp; addr += 4) {
+            int value = core.spm.readWord(addr);
+            if (value == 0) continue;
+            if (!firstSp) cout << ", ";
+            firstSp = false;
+            cout << "{\"address\": " << addr << ", \"value\": " << value << "}";
+        }
+        cout << "]\n";
+        cout << "    }";
+        if (i + 1 < cores.size()) cout << ",";
+        cout << "\n";
+    }
+    cout << "  ],\n";
+    cout << "  \"memory\": [";
+    bool firstMem = true;
+    for (int addr = 0; addr < MEMORY_SIZE; addr += 4) {
+        int value = readMemoryWord(addr);
+        if (value == 0) continue;
+        if (!firstMem) cout << ", ";
+        firstMem = false;
+        cout << "{\"address\": " << addr << ", \"value\": " << value << "}";
+    }
+    cout << "],\n";
+    cout << "  \"cache\": {\n";
+    cout << "    \"l1_hits\": [";
+    for (int i = 0; i < CORE_COUNT; ++i) {
+        if (i > 0) cout << ", ";
+        cout << cache_l1_hits[i];
+    }
+    cout << "],\n";
+    cout << "    \"l1_misses\": [";
+    for (int i = 0; i < CORE_COUNT; ++i) {
+        if (i > 0) cout << ", ";
+        cout << cache_l1_misses[i];
+    }
+    cout << "],\n";
+    cout << "    \"l2_hits\": " << cache_l2_hits << ",\n";
+    cout << "    \"l2_misses\": " << cache_l2_misses << ",\n";
+    cout << "    \"memory_accesses\": " << memory_accesses << ",\n";
+    cout << "    \"l1_hit_rates\": [";
+    for (int i = 0; i < CORE_COUNT; ++i) {
+        int total = cache_l1_hits[i] + cache_l1_misses[i];
+        float rate = total == 0 ? 0.0f : static_cast<float>(cache_l1_hits[i]) / total * 100.0f;
+        if (i > 0) cout << ", ";
+        cout << fixed << setprecision(2) << rate;
+    }
+    cout << "],\n";
+  float l2_hit_rate = memory_accesses == 0 ? 0.0f
+      : static_cast<float>(cache_l2_hits) / memory_accesses * 100.0f;
+  float l2_miss_rate = memory_accesses == 0 ? 0.0f
+      : static_cast<float>(cache_l2_misses) / memory_accesses * 100.0f;
+    cout << "    \"l2_hit_rate\": " << fixed << setprecision(2) << l2_hit_rate << ",\n";
+    cout << "    \"l2_miss_rate\": " << fixed << setprecision(2) << l2_miss_rate << "\n";
+    cout << "  }\n";
+    cout << "}\n";
+}
 
 int main(int argc, char *argv[]) {
     std::vector<Core> cores;
     bool forwarding_option;
+    bool json_mode = false;
     string asm_file = "Sync.asm";
-    if (argc > 1) asm_file = argv[1];
-    Specifications specs = parseSpecifications("Specifications.txt");
+    string specs_file = "Specifications.txt";
+
+    for (int i = 1; i < argc; ++i) {
+        string arg = argv[i];
+        if (arg == "--json") {
+            json_mode = true;
+        } else if (arg == "--specs" && i + 1 < argc) {
+            specs_file = argv[++i];
+        } else if (arg == "--asm" && i + 1 < argc) {
+            asm_file = argv[++i];
+        } else if (arg[0] != '-') {
+            asm_file = arg;
+        }
+    }
+
+    Specifications specs = parseSpecifications(specs_file);
     SP_memory spm(specs.L1_cache_size, specs.L1_latency, specs.L1_associativity);
 
     initializeSystem(specs.line_size, specs.L1_cache_size, specs.L2_cache_size,  specs.L1_associativity, specs.L2_associativity, specs.L1_latency, specs.L2_latency, specs.replacement_policy,specs.main_memory_latency);
     
     forwarding_option = specs.data_forwarding;
-    cout << "Data Forwarding: " << (forwarding_option ? "Enabled" : "Disabled") << endl;
     auto latencies = specs.latencies;
-    cout<< "Latencies: " << endl;
-    for (const auto &entry : latencies) {
-        std::cout << entry.first << " -> " << entry.second << " cycles\n";
+
+    if (!json_mode) {
+        cout << "Data Forwarding: " << (forwarding_option ? "Enabled" : "Disabled") << endl;
+        cout<< "Latencies: " << endl;
+        for (const auto &entry : latencies) {
+            std::cout << entry.first << " -> " << entry.second << " cycles\n";
+        }
     }
+
     parseAssembly(asm_file);
     for (int i = 0; i < CORE_COUNT; i++) {
         cores.emplace_back(i, label_map, forwarding_option,latencies,spm,specs.main_memory_latency);
     }
     executePipeline(cores);
 
-   
+    if (json_mode) {
+        printJsonResults(cores, specs);
+        return 0;
+    }
+
    for (Core &core : cores) {
         std::cout << "\n====== Results for Core " << core.core_id << " ======\n";
         core.printRegisters();
@@ -365,10 +480,7 @@ int main(int argc, char *argv[]) {
         std::cout << "IPC: " << IPC << "\n";
         core.spm.sp_printMemory();
     }
-    //printInstructionCache();
-    //printCaches();
     printMemory();
-   
 
     return 0;
 }

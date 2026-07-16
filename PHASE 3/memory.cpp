@@ -290,10 +290,8 @@ void initializeCaches() {
     l2_cache = new vector<CacheLine>[L2_SETS];
     for (int i = 0; i < L2_SETS; i++) {
         l2_cache[i].resize(associativity_l2);
-       // l2I_cache[i].resize(associativity_l2);
-          for (int j = 0; j < associativity_l2; j++) {
-            l2_cache[i][j].line_data.resize(line_size,0);  // ✅ Resize line_data
-            //l2I_cache[i][j].line_data.resize(line_size,0);
+        for (int j = 0; j < associativity_l2; j++) {
+            l2_cache[i][j].line_data.resize(line_size,0);
         }
     }
 }
@@ -450,17 +448,16 @@ int lw(int address, int core_id) {
             memory_latency=l2_latency;
             updateReplacement(l2_set, way);
             int l1_replace = get_replacement_way(l1_set);
-             for(int i = 0; i < line_size; i++) {
-            l1_set[l1_replace].line_data[i] = l2_set[way].line_data[i];
-              }
-          
-           // memccpy(&l1_set[l1_replace].line_data, &l2_set[way].line_data, line_size,sizeof(uint32_t));
+            for(int i = 0; i < line_size; i++) {
+                l1_set[l1_replace].line_data[i] = l2_set[way].line_data[i];
+            }
             updateReplacement(l1_set, l1_replace);
             int word;
             memcpy(&word, &l1_set[l1_replace].line_data[offset], sizeof(int));
             return word;
         }
     }
+
     cache_l2_misses++;
     uint32_t block_start = address - offset;
     int l1 = get_replacement_way(l1_set);   
@@ -478,9 +475,6 @@ int lw(int address, int core_id) {
     l2_set[l2_replace].valid = true;
     updateReplacement(l2_set, l2_replace);
 
-    /*int l1_replace = 0;
-    l1_set[l1_replace] = l2_set[l2_replace];
-    updateLRU(l1_set, l1_replace);*/
     memory_latency= main_memory_latency;
     int word;
     memcpy(&word, &l1_set[l1].line_data[offset], sizeof(int));
@@ -582,17 +576,11 @@ void printInstructionCache() {
 
 
 void sw1(int address, int value, int core_id) {
-    int base_address = (core_id) * 1024;
-    int max_address = base_address + 1024;
     if (address < 0 || address >= MEMORY_SIZE) {
         std::cerr << "Error: Core " << core_id << " tried to access memory out of its range!\n";
         exit(1);
     }
-     
-    int old_value = lw(address);
-    
     std::memcpy(&memory_main[address], &value, sizeof(int));
-    int new_value = lw(address);
 }
 void printMemory() {
     std::cout << "\n=== Memory State ===\n";
@@ -690,8 +678,6 @@ public:
     }
 
     void sw_spm(int address, int value) {
-
-        sp_memory[address] = value;
         std::memcpy(&sp_memory[address], &value, sizeof(int));
     }
     void sp_printMemory() {
@@ -704,4 +690,20 @@ public:
     std::cout << std::endl;
 }
 
+    int readWord(int address) const {
+        int value = 0;
+        if (address >= 0 && address + 3 < size_sp) {
+            std::memcpy(&value, &sp_memory[address], sizeof(int));
+        }
+        return value;
+    }
+
 };
+
+int readMemoryWord(int address) {
+    int value = 0;
+    if (address >= 0 && address + 3 < MEMORY_SIZE) {
+        std::memcpy(&value, &memory_main[address], sizeof(int));
+    }
+    return value;
+}

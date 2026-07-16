@@ -6,7 +6,7 @@
 using namespace std;
 #define CORE_COUNT 4
 #define REGISTER_COUNT 32
- 
+
 
 struct PipelineStage {
     std::string instruction;
@@ -25,6 +25,7 @@ struct PipelineStage {
     bool high_memory_latency = false;
     int memory_remaining_cycles=0 ;
     bool fetch_high = false;
+    bool mem_done = false; // whether the MEM-stage access has already run
     PipelineStage() : valid_instruction(false),valid_data(false), rs1(0), rs2(0), rd(0),
     hazard_detected(false),stalled(false),remaining_cycles(0),extra_cycles(0){}
 };
@@ -48,7 +49,6 @@ public:
     int forwarding =0;
     void shiftStages() {
         if(stall_flag== true){
-            cout << "Stall flag is true"<<endl;
             if(stalled_stage==4){
                 WB_Return.stalled= true;
                 MEM_WB.stalled = true;
@@ -124,10 +124,8 @@ public:
         }
 
         else {
-            cout << "Stall flag is flase"<<endl;
             if(EX_MEM.remaining_cycles >1){
                 EX_MEM.remaining_cycles--;
-                cout << " stalling due to high latency ."<< endl ;
                 WB_Return=MEM_WB;
                 MEM_WB.valid_instruction = false;
                 fetch_stall=true;
@@ -136,7 +134,6 @@ public:
                 stalls++;
                 EX_MEM.extra_cycles ++;
                 stall_flag=false;
-              cout<<" EX_MEM.extra_cycles:"<< EX_MEM.extra_cycles<<endl;
             }
             else if(MEM_WB.memory_latency>1 && MEM_WB.valid_instruction){
                 MEM_WB.memory_latency=MEM_WB.memory_latency-1;
@@ -231,7 +228,6 @@ public:
         pipeline.ID_EX.valid_instruction = true;
             auto &instr = pipeline.ID_EX.instruction;
             auto &args = pipeline.ID_EX.args;
-            cout<<"[core "<<core_id<<"] Decoding instruction: "<<instr<<endl;
         //3.CHECK AND DECODE ACCORDINGLY 
             if (instr == "add" || instr == "sub" || instr == "and" || instr == "or" || instr == "xor"|| instr == "mul") {
                 pipeline.ID_EX.rd = getRegisterIndex(args[0]);  
@@ -241,25 +237,17 @@ public:
                 pipeline.ID_EX.rs2_value=registers[pipeline.ID_EX.rs2];
                 //4.IF FORWARDING IS ENABLED THEN CHECK FOR FORWARDING
                 if(enable_forwarding){
-                //FORWARD DEPENDENCY ON EX/MEM TO ID/EX RS1
-                
                  //FORWARD DEPENDCY FORM MEM/WB TO ID/EX RS1
                 if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs1 ) {
-                std::cout << "[Core " << core_id << "] Forwarding from MEM/WB to ID/EX (RS1: x" 
-                          << pipeline.ID_EX.rs1 << ")value forwarded :" <<pipeline.MEM_WB.rd_value << endl;
                 pipeline.ID_EX.rs1_value = pipeline.MEM_WB.rd_value;
                 hazard_in_id++;
                 }
-                //FORWARD DEPENDCY FORM MEM/WB TO ID/EX RS1
+                //FORWARD DEPENDCY FORM MEM/WB TO ID/EX RS2
                  if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs2) {
-                std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS2: x" 
-                          << pipeline.ID_EX.rs2 << ")\n";
                 pipeline.ID_EX.rs2_value = pipeline.MEM_WB.rd_value;
                 hazard_in_id++;
                 }
                 if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs1 && pipeline.EX_MEM.instruction !="lw") {
-                    std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS1: x" 
-                              << pipeline.ID_EX.rs1 << ")value forwarded :" <<pipeline.EX_MEM.rd_value << endl;
                     pipeline.ID_EX.rs1_value = pipeline.EX_MEM.rd_value;
                     hazard_in_id++;
                 }
@@ -271,8 +259,6 @@ public:
                 }
                 //FORWARD DEPENDENCY ON  EX/MEM TO ID/EX RS 2 
                 if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs2  && pipeline.EX_MEM.instruction!="lw") {
-                    std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS2: x" 
-                              << pipeline.ID_EX.rs2 << ")\n";
                     pipeline.ID_EX.rs2_value = pipeline.EX_MEM.rd_value;
                     hazard_in_id++;
                  }
@@ -284,10 +270,8 @@ public:
                 }
             }
             else{
-                 
                    //5. IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY IN MEM
                    if (pipeline.MEM_WB.valid_instruction && (pipeline.MEM_WB.rd == pipeline.ID_EX.rs1||pipeline.MEM_WB.rd == pipeline.ID_EX.rs2)) {
-                    cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl; 
                         pipeline.stall_flag=true; // stall flag is true
                         pipeline.stalled_stage=2; // stall stage ID
                         pipeline.mem_dependency= true ; // MEM dependency on prev instruction
@@ -295,17 +279,11 @@ public:
                     }
                       //5. IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY IN EX
                   if (pipeline.EX_MEM.valid_instruction && (pipeline.EX_MEM.rd == pipeline.ID_EX.rs1|| pipeline.EX_MEM.rd == pipeline.ID_EX.rs2)) {
-                    cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
                     pipeline.stall_flag=true;//stall flag is true 
                     pipeline.stalled_stage=2; // stall stage ID     
                     pipeline.ex_dependency=true; // EX dependency on prev instruction          
                    }
                 }
-            std::cout << "[Core " << core_id << "] Decoded instruction: " << instr
-            << " | RD: " << pipeline.ID_EX.rd
-            << " | RS1: " << pipeline.ID_EX.rs1
-            << " | RS2: " << pipeline.ID_EX.rs2 << "\n";
-         
         }
           
             else if (instr == "addi" || instr == "slli" || instr == "srli" ) {
@@ -313,22 +291,15 @@ public:
                 pipeline.ID_EX.rs1 = getRegisterIndex(args[1]); 
                 pipeline.ID_EX.offset = std::stoi(args[2]); 
                 pipeline.ID_EX.rs1_value=registers[pipeline.ID_EX.rs1];
-                cout<<"rs1_value"<<pipeline.ID_EX.rs1_value<<endl;
         //4.IF FORWARDING IS ENABLED THEN CHECK FOR DEPENDENCY
                 if(enable_forwarding) {
-       
-                    
          //5.FORWARD DEPENDENCY ON MEM/WB TO ID/EX RS1
                     if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs1) {
-                        std::cout << "[Core " << core_id << "] Forwarding from MEM/WB to ID/EX (RS1: x" 
-                                  << pipeline.ID_EX.rs1 << ")\n"<<"value forwarded :" <<pipeline.MEM_WB.rd_value;
                         pipeline.ID_EX.rs1_value = pipeline.MEM_WB.rd_value;
                         hazard_in_id++;
                     }
                       //5.FORWARD DEPENDENCY ON EX/MEM TO ID/EX RS1
                       if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs1 && pipeline.EX_MEM.instruction!="lw") {
-                        std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS1: x" 
-                                  << pipeline.ID_EX.rs1 << ")\n"<<"value forwarded :" <<pipeline.EX_MEM.rd_value;
                         pipeline.ID_EX.rs1_value = pipeline.EX_MEM.rd_value;
                         hazard_in_id++;
                     }
@@ -343,30 +314,19 @@ public:
 
          //4.IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY
                 else{
-        
           //5. IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY IN MEM
                     if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs1) {
-                        cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
-                        pipeline.mem_dependency=true; // EX dependency on prev instruction 
-                        
+                        pipeline.mem_dependency=true; // MEM dependency on prev instruction 
                     }
                      //5. IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY IN EX
                      if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs1) {
-                        cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
                         pipeline.ex_dependency=true; // EX dependency on prev instruction 
-                       
                     }
-
                 }
-               
-                std::cout << "[Core " << core_id << "] Decoded instruction: " << instr
-                << " | RD: " << pipeline.ID_EX.rd
-                << " | RS1: " << pipeline.ID_EX.rs1
-                << " | Offset: " << pipeline.ID_EX.offset << "\n";
             } 
 
             else if (instr == "lw"||instr == "lw_spm") {
@@ -376,37 +336,28 @@ public:
                 pipeline.ID_EX.rs1_value=registers[pipeline.ID_EX.rs1];
                 pipeline.ID_EX.address = pipeline.ID_EX.rs1_value + pipeline.ID_EX.offset; 
                 pipeline.ID_EX.rd = getRegisterIndex(args[0]);  
-                cout<< "rd " << pipeline.ID_EX.rd<< " offset: " << pipeline.ID_EX.offset<<" rs1: "<<pipeline.ID_EX.rs1 << endl;         
                 //4.IF FORWARDING IS ENABLED THEN CHECK FOR DEPENDENCY      
                 if(enable_forwarding){
-                    //5.FORWARD DEPENDENCY ON EX/MEM TO ID/EX RS1 AND PREVIOUS INSTRUCTION IS NOT SW
-                   
                     //5.FORWARD DEPENDENCY ON MEM/WB TO ID/EX RS1 AND PREVIOUS INSTRUCTION IS NOT SW
                     if (pipeline.MEM_WB.valid_instruction && (pipeline.MEM_WB.rd == pipeline.ID_EX.rs1 && pipeline.MEM_WB.instruction != "sw") ){
-                        std::cout << "[Core " << core_id << "] Forwarding from MEM/WB to ID/EX (RS1: x" 
-                                  << pipeline.ID_EX.rs1 << ")\n";
                         pipeline.ID_EX.rs1_value = pipeline.MEM_WB.rd_value;
                         hazard_in_id++;
                     }
                     pipeline.ID_EX.address = pipeline.ID_EX.rs1_value + pipeline.ID_EX.offset;
-                    //5.DEPENDENCY ON EX/MEM TO ID/EX RS1 AND PREVIOUS INSTRUCTION IS SW SO STALLING TILL MEM OF SW IS FINISHED  
+                    //5.DEPENDENCY ON MEM/WB TO ID/EX AND PREVIOUS INSTRUCTION IS SW SO STALL TILL MEM OF SW IS FINISHED  
                     if(pipeline.MEM_WB.valid_instruction && (pipeline.MEM_WB.address == pipeline.ID_EX.address && pipeline.MEM_WB.instruction == "sw")){
-                        cout << "DEPENDENCY ON MEM/WB TO ID/EX RS1 AND PREVIOUS INSTRUCTION IS SW SO STALLING TILL MEM OF SW IS FINISHED"<<endl;
                     pipeline.stalls++;
                     pipeline.stall_flag=true;
                     pipeline.stalled_stage=2;
                     pipeline.mem_dependency=true;
                     }
                     if (pipeline.EX_MEM.valid_instruction && (pipeline.EX_MEM.rd == pipeline.ID_EX.rs1 && pipeline.EX_MEM.instruction != "sw") ){
-                        std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS1: x" 
-                                  << pipeline.ID_EX.rs1 << ")\n";
                         pipeline.ID_EX.rs1_value = pipeline.EX_MEM.rd_value;
                         hazard_in_id++;
                     }
                     pipeline.ID_EX.address = pipeline.ID_EX.rs1_value + pipeline.ID_EX.offset;  
-                    //5.DEPENDENCY ON EX/MEM TO ID/EX RS1 AND PREVIOUS INSTRUCTION IS SW SO STALLING TILL MEM OF SW IS FINISHED
+                    //5.DEPENDENCY ON EX/MEM TO ID/EX AND PREVIOUS INSTRUCTION IS SW SO STALL TILL MEM OF SW IS FINISHED
                     if(pipeline.EX_MEM.valid_instruction && (pipeline.EX_MEM.address == pipeline.ID_EX.address && pipeline.EX_MEM.instruction == "sw")){
-                        cout << "DEPENDENCY ON EX/MEM TO ID/EX RS1 AND PREVIOUS INSTRUCTION IS SW SO STALLING TILL MEM OF SW IS FINISHED"<<endl;
                     pipeline.stalls++;
                     pipeline.stall_flag=true;
                     pipeline.stalled_stage=2;
@@ -414,41 +365,27 @@ public:
                     }
                 }
                 else{
-                    //5. IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY IN EX
-                    
                     //5. IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY IN MEM
                     if (pipeline.MEM_WB.valid_instruction && (pipeline.MEM_WB.rd == pipeline.ID_EX.rs1 && pipeline.MEM_WB.offset== pipeline.ID_EX.offset && pipeline.MEM_WB.instruction=="sw") ){
-                        cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
-                        pipeline.mem_dependency=true; // EX dependency on prev instruction         
-                        cout << " mem dependency " << endl;       
-                 
+                        pipeline.mem_dependency=true; // MEM dependency on prev instruction         
                     }
                     if (pipeline.MEM_WB.valid_instruction && (pipeline.MEM_WB.rd == pipeline.ID_EX.rs1 && pipeline.MEM_WB.instruction!="sw") ){
-                        cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
-                        pipeline.mem_dependency=true; // EX dependency on prev instruction         
-                        cout << " mem dependency " << endl;       
-                 
+                        pipeline.mem_dependency=true; // MEM dependency on prev instruction         
                     }
                     pipeline.ID_EX.address = pipeline.ID_EX.rs1_value + pipeline.ID_EX.offset;  
                     if (pipeline.EX_MEM.valid_instruction && (pipeline.EX_MEM.rd == pipeline.ID_EX.rs1 && pipeline.ID_EX.offset== pipeline.EX_MEM.offset && pipeline.EX_MEM.instruction=="sw" ) ){
-                        cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
                         pipeline.ex_dependency=true; // EX dependency on prev instruction  
-                        cout << " ex dependency " << endl;       
-                
                     }
                     if (pipeline.EX_MEM.valid_instruction && (pipeline.EX_MEM.rd == pipeline.ID_EX.rs1 && pipeline.EX_MEM.instruction!="sw" ) ){
-                        cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
                         pipeline.ex_dependency=true; // EX dependency on prev instruction  
-                        cout << " ex dependency " << endl;       
-                
                     }
                     pipeline.ID_EX.address = pipeline.ID_EX.rs1_value + pipeline.ID_EX.offset;  
                 }
@@ -461,15 +398,12 @@ public:
                 pipeline.ID_EX.offset = std::stoi(args[1].substr(0, args[1].find('(')));            
                 pipeline.ID_EX.rd = baseRegIndex;  
                 pipeline.ID_EX.rd_value=registers[baseRegIndex];
-                cout<< "rd: " << pipeline.ID_EX.rd << " offset: " << pipeline.ID_EX.offset << endl;
                 pipeline.ID_EX.address = pipeline.ID_EX.rd_value + pipeline.ID_EX.offset; 
                 pipeline.ID_EX.rs1 = getRegisterIndex(args[0]);
                 pipeline.ID_EX.rs1_value=registers[pipeline.ID_EX.rs1];
                 pipeline.ID_EX.rs2 = baseRegIndex;
-                cout<< "rs1:"<<pipeline.ID_EX.rs1 << endl;
                 if(enable_forwarding){
                     if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs1 && pipeline.MEM_WB.instruction=="lw") {
-                        cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage
                     pipeline.stalls++;
                     pipeline.stall_flag=true;
                     pipeline.stalled_stage=2;
@@ -477,97 +411,67 @@ public:
                     pipeline.forwarding =1;
                     }
                     if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs2&& pipeline.MEM_WB.instruction=="lw") {
-                        cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage
                         pipeline.stalls++;
                     pipeline.stall_flag=true;
                     pipeline.stalled_stage=2;
                     pipeline.mem_dependency=true;
                      pipeline.forwarding= 2;
-
                         }
                     if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs2 && pipeline.EX_MEM.instruction=="lw") {
-                        cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage
                         pipeline.stalls++;
                     pipeline.stall_flag=true;
                     pipeline.stalled_stage=2;
                     pipeline.mem_dependency=true;
                      pipeline.forwarding = 2;
-
                         }
                      if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs1 && pipeline.EX_MEM.instruction=="lw") {
-                        cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage
                      pipeline.stalls++;
                     pipeline.stall_flag=true;
                     pipeline.stalled_stage=2;
                     pipeline.mem_dependency=true;
                     pipeline.forwarding = 1;
-                         
-                        
                     }
 
                     if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs1 && pipeline.MEM_WB.instruction!="lw") {
-                    std::cout << "[Core " << core_id << "] Forwarding from MEM/WB to ID/EX (RS1: x" 
-                              << pipeline.ID_EX.rs1 << ")\n";
                     pipeline.ID_EX.rs1_value = pipeline.MEM_WB.rd_value;
                     hazard_in_id++;
-                    cout<<"Value forwarded:"<<pipeline.ID_EX.rs1_value<<endl;
                     }
                     if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs2 && pipeline.MEM_WB.instruction!="lw") {
-                        std::cout << "[Core " << core_id << "] Forwarding from MEM/WB to ID/EX (RS2: x" 
-                                  << pipeline.ID_EX.rs2 << ")\n";
                         pipeline.ID_EX.rd_value = pipeline.MEM_WB.rd_value;
                         hazard_in_id++;
-                        cout<<"Value forwarded:"<<pipeline.ID_EX.rd_value<<endl;
                         }
                     if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs2 && pipeline.EX_MEM.instruction!="lw") {
-                        std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS2: x" 
-                                  << pipeline.ID_EX.rs2 << ")\n";
                         pipeline.ID_EX.rd_value = pipeline.EX_MEM.rd_value;
                         hazard_in_id++;
-                        cout<<"Value forwarded:"<<pipeline.ID_EX.rd_value<<endl;
                         }
                         if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs1 && pipeline.EX_MEM.instruction!="lw") {
-                            std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS1: x" 
-                                      << pipeline.ID_EX.rs1 << ")\n";
                             pipeline.ID_EX.rs1_value = pipeline.EX_MEM.rd_value;
                             hazard_in_id++;
-                            cout<<"Value forwarded:"<<pipeline.ID_EX.rs1_value<<endl;
                             }
 
                 }
                 else{
                     if(pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs1){
-                        cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
                         pipeline.ex_dependency=true; // EX dependency on prev instruction        
-                        cout << "ex dependency"<<endl;  
                     }
                     if(pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs1){
-                        cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
                         pipeline.mem_dependency=true; // MEM dependency on prev instruction 
-                        cout << "mem dependency"<<endl;           
                     }
                 }
              
                 pipeline.ID_EX.address = pipeline.ID_EX.rd_value + pipeline.ID_EX.offset;  
-                cout<<"address"<< pipeline.ID_EX.address<<endl;
                 
             } 
 
             else if (instr == "beq" || instr == "bne" || instr == "blt" || instr == "bge") {
                 if(pipeline.ID_EX.args[0] =="cid"){
                     cid_val= std::stoi(args[1]);
-                    cout<<"core dependenct instruction "<<endl;
-                    cout<<"CID value:"<<cid_val;
                     string branch_target =pipeline.ID_EX.args[2];
-                    cout<<"branch target :"<< branch_target <<endl;
                     int new_pc=label_map[pipeline.ID_EX.args[2]][core_id];
-                    //global_pc = new_pc;
-                    //cout<<"global pc:"<<global_pc<<endl;
-                    
                 }
                 else{
                 pipeline.ID_EX.rs1 = getRegisterIndex(args[0]); 
@@ -582,27 +486,20 @@ public:
                 }
                 if(enable_forwarding){
                     if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs1 ) {
-                        std::cout << "[Core " << core_id << "] Forwarding from MEM/WB to ID/EX (RS1: x" 
-                                  << pipeline.ID_EX.rs1 << ")value forwarded :" <<pipeline.MEM_WB.rd_value << endl;
                         pipeline.ID_EX.rs1_value = pipeline.MEM_WB.rd_value;
                         hazard_in_id++;
                         }
-                        //FORWARD DEPENDCY FORM MEM/WB TO ID/EX RS1
+                        //FORWARD DEPENDCY FORM MEM/WB TO ID/EX RS2
                          if (pipeline.MEM_WB.valid_instruction && pipeline.MEM_WB.rd == pipeline.ID_EX.rs2) {
-                        std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS2: x" 
-                                  << pipeline.ID_EX.rs2 << ")\n";
                         pipeline.ID_EX.rs2_value = pipeline.MEM_WB.rd_value;
                         hazard_in_id++;
                         }
                     //FORWARD DEPENDENCY ON EX/MEM TO ID/EX RS1
                     if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs1 && pipeline.EX_MEM.instruction !="lw") {
-                        std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS1: x" 
-                                  << pipeline.ID_EX.rs1 << ")value forwarded :" <<pipeline.EX_MEM.rd_value << endl;
                         pipeline.ID_EX.rs1_value = pipeline.EX_MEM.rd_value;
                         hazard_in_id++;
                     }
                     if(pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs1 && pipeline.EX_MEM.instruction=="lw"){
-                        cout<<"stalling due to dependency on x " << pipeline.EX_MEM.rd << " goimg through lw "<<endl;
                         pipeline.stalls++;
                         pipeline.stall_flag=true;
                         pipeline.stalled_stage=2;
@@ -610,38 +507,29 @@ public:
                     }
                     //FORWARD DEPENDENCY ON  EX/MEM TO ID/EX RS 2 
                     if (pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs2  && pipeline.EX_MEM.instruction!="lw") {
-                        std::cout << "[Core " << core_id << "] Forwarding from EX/MEM to ID/EX (RS2: x" 
-                                  << pipeline.ID_EX.rs2 << ")\n";
                         pipeline.ID_EX.rs2_value = pipeline.EX_MEM.rd_value;
                         hazard_in_id++;
                      }
                      if(pipeline.EX_MEM.valid_instruction && pipeline.EX_MEM.rd == pipeline.ID_EX.rs2 && pipeline.EX_MEM.instruction=="lw"){
-                        cout<<"stalling due to dependency on x " << pipeline.EX_MEM.rd << " goimg through lw "<<endl;
                         pipeline.stalls++;
                         pipeline.stall_flag=true;
                         pipeline.stalled_stage=2;
                         pipeline.ex_dependency=true;
                     }
-                     //FORWARD DEPENDCY FORM MEM/WB TO ID/EX RS1
-                    
                 }
                 else{
                         //5. IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY IN EX
                       if (pipeline.EX_MEM.valid_instruction && (pipeline.EX_MEM.rd == pipeline.ID_EX.rs1|| pipeline.EX_MEM.rd == pipeline.ID_EX.rs2)) {
-                        cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl;//dependency in EX stage 
                         pipeline.stall_flag=true;//stall flag is true 
                         pipeline.stalled_stage=2; // stall stage ID     
                         pipeline.ex_dependency=true; // EX dependency on prev instruction          
                        }
                        //5. IF FORWARDING IS DISABLED THEN CHECK FOR DEPENDENCY IN MEM
                        if (pipeline.MEM_WB.valid_instruction && (pipeline.MEM_WB.rd == pipeline.ID_EX.rs1||pipeline.MEM_WB.rd == pipeline.ID_EX.rs2)) {
-                        cout<< " Forwarding is disabled stalling till wb of previous instruction"<<endl; 
                             pipeline.stall_flag=true; // stall flag is true
                             pipeline.stalled_stage=2; // stall stage ID
                             pipeline.mem_dependency= true ; // MEM dependency on prev instruction
-    
                         }
-                
                     }
                 }
 
@@ -678,7 +566,6 @@ public:
             else if(instr == "li"){
                 pipeline.ID_EX.rd = getRegisterIndex(args[0]);
                 pipeline.ID_EX.offset = stoi(args[1]);
-                cout<<"rd:"<< pipeline.ID_EX.rd << "value:" << pipeline.ID_EX.offset;
             }
             else if(instr == "SYNC"){
                
@@ -692,30 +579,8 @@ public:
         pipeline.ID_EX.remaining_cycles = 1; // Default latency
         pipeline.ID_EX.high_latency=false;
     }
-    if(instr== "lw"|| instr == "sw"){
-        pipeline.ID_EX.memory_latency= main_memory_latency;
-        cout<<"memory latency :"<< pipeline.ID_EX.memory_latency<<endl;
-        if(pipeline.ID_EX.memory_latency > 1){
-            pipeline.ID_EX.high_memory_latency=true;
-        }
-        else{
-            pipeline.ID_EX.high_memory_latency=false;
-        }
-
-    }
-    if(instr== "lw_spm" || instr == "sw_spm"){
-        pipeline.ID_EX.memory_latency= spm.latency_sp;
-         pipeline.ID_EX.memory_remaining_cycles = spm.latency_sp;
-        if(pipeline.ID_EX.memory_latency > 1){
-            pipeline.ID_EX.high_memory_latency=true;
-        }
-        else{
-            pipeline.ID_EX.high_memory_latency=false;
-        }
-    }
-
-  
-   
+    // Memory latency is resolved later, in the MEM stage, once we know whether
+    // the access is an L1 hit, an L2 hit or a main-memory miss.
 }
     
     void executeStage() {
@@ -735,13 +600,9 @@ public:
         //3.LATENCY CHECK 
         if(pipeline.EX_MEM.high_latency == true){
             if (pipeline.EX_MEM.remaining_cycles == instruction_latencies[pipeline.EX_MEM.instruction]) {
-                std::cout << "[Core " << core_id << "] Executing " << pipeline.EX_MEM.instruction 
-                          << " (cycle:" << pipeline.EX_MEM.remaining_cycles << ") \n";
-                          //return ;
+                // first EX cycle for a multi-cycle ALU op: compute the result now
             }
             else{
-                std::cout << "[Core " << core_id << "] Executing " << pipeline.EX_MEM.instruction 
-                << " (cycle:" << pipeline.EX_MEM.remaining_cycles << ") \n";
                 return ;
             }
 
@@ -764,7 +625,6 @@ public:
              if (enable_forwarding && (pipeline.WB_Return.instruction == "lw")){
                 if(pipeline.EX_MEM.rs1 == pipeline.WB_Return.rd){
                    rs1_val=pipeline.WB_Return.rd_value;
-                    cout<<"rs1_value:"<<rs1_val<<endl;
                     rs2_val=pipeline.EX_MEM.rs2_value;
                 }
                 if(pipeline.EX_MEM.rs2 == pipeline.WB_Return.rd){
@@ -777,7 +637,6 @@ public:
             int imm = pipeline.EX_MEM.offset;     
             int adress = pipeline.EX_MEM.address;  
             int rd = pipeline.EX_MEM.rd;
-            std::cout << "[Core " << core_id << "] Executing instruction: " << instr << "\n";
             if (instr == "add") {
                 pipeline.EX_MEM.rd_value = rs1_val + rs2_val;
             } 
@@ -786,10 +645,8 @@ public:
             }
             else if(instr == "mul"){
                 pipeline.EX_MEM.rd_value = rs1_val*rs2_val;
-                cout<<"Executed instruction :" <<pipeline.EX_MEM.instruction << " output :" <<  pipeline.EX_MEM.rd_value;
             }            
             else if (instr == "addi") {
-
                 pipeline.EX_MEM.rd_value = rs1_val + pipeline.EX_MEM.offset;
             } else if (instr == "slli") {
                 pipeline.EX_MEM.rd_value = rs1_val << imm;
@@ -816,33 +673,23 @@ public:
                 std::string rs2_str = pipeline.EX_MEM.args[1];  // RS2
                 std::string target_label = pipeline.EX_MEM.args[2];  // Branch label
                 if (rs1_str == "cid") {  
-                    std::cout << "Instruction is core-dependent\n";
-                    std::cout << "Checking branch at Core " << core_id << ", CID value: " << cid_val << std::endl;
-            
                     // **Only the correct core should take the branch**
                     if (core_id == cid_val) {  
                         if (label_map.find(target_label) != label_map.end()) {
                             int new_pc = label_map[target_label][core_id];
-                            std::cout << "[Core " << core_id << "] Branch Taken! Jumping to " 
-                                      << target_label << " at index " << new_pc << std::endl;
                             global_pc = new_pc;
                             pipeline.ID_EX.valid_instruction = false;  // Invalidate instruction after branch
                         } else {
                             std::cerr << "[ERROR] Label " << target_label << " not found!\n";
                             exit(EXIT_FAILURE);
                         }
-                    } else {
-                        std::cout << "[Core " << core_id << "] Ignoring core-dependent branch.\n";
                     }
                 }
              else{
-                cout<<"checking if "<< rs1_val << "=" << rs2_val <<endl;
                 if (rs1_val == rs2_val) {
                     std::string target_label = pipeline.EX_MEM.args[2];
                     if (label_map.find(target_label) != label_map.end()) {
                         int new_pc = label_map[target_label][core_id];
-                        std::cout << "[Core " << core_id << "] Branch Taken! Jumping to " 
-                                  << target_label << " at index " << new_pc << std::endl;
                         global_pc = new_pc ; // Adjust for fetch increment
                         pipeline.ID_EX.valid_instruction=false;
 
@@ -852,10 +699,6 @@ public:
                     }
                     
                 }
-                else{
-                    cout<<"Branch not taken contiinuing with: "<< pipeline.ID_EX.instruction << endl;
-                }
-
              }
               
              } 
@@ -864,105 +707,38 @@ public:
                 std::string rs2_str = pipeline.EX_MEM.args[1];  // RS2
                 std::string target_label = pipeline.EX_MEM.args[2];  // Branch label
                 if (rs1_str == "cid") {  
-                    std::cout << "Instruction is core-dependent\n";
-                    std::cout << "Checking branch at Core " << core_id << ", CID value: " << cid_val << std::endl;
-            
                     // **Only the correct core should take the branch**
                     if (core_id == cid_val) {  
                         if (label_map.find(target_label) != label_map.end()) {
                             int new_pc = label_map[target_label][core_id];
-                            std::cout << "[Core " << core_id << "] Branch Taken! Jumping to " 
-                                      << target_label << " at index " << new_pc << std::endl;
                             global_pc = new_pc;
                             pipeline.ID_EX.valid_instruction = false;  // Invalidate instruction after branch
                         } else {
                             std::cerr << "[ERROR] Label " << target_label << " not found!\n";
                             exit(EXIT_FAILURE);
                         }
-                    } else {
-                        std::cout << "[Core " << core_id << "] Ignoring core-dependent branch.\n";
                     }
                 }
             
                 // **Handle normal BNE X, Y, label**
                 else {
-                   
-                    std::cout << "[Core " << core_id << "] Checking BNE: " << rs1_val << " != " << rs2_val << std::endl;
-            
                     if (rs1_val != rs2_val) {
                         if (label_map.find(target_label) != label_map.end()) {
                             int new_pc = label_map[target_label][core_id];
-                            std::cout << "[Core " << core_id << "] Branch Taken! Jumping to " 
-                                      << target_label << " at index " << new_pc << std::endl;
                             global_pc = new_pc;
                             pipeline.ID_EX.valid_instruction = false;
                         } else {
                             std::cerr << "[ERROR] Label " << target_label << " not found!\n";
                             exit(EXIT_FAILURE);
                         }
-                    } else {
-                        std::cout << "[Core " << core_id << "] Branch not taken, continuing execution.\n";
                     }
                 }
             }
-            else if (instr == "beq") {
-                std::string rs1_str = pipeline.EX_MEM.args[0];  // RS1 (could be "cid")
-                std::string rs2_str = pipeline.EX_MEM.args[1];  // RS2
-                std::string target_label = pipeline.EX_MEM.args[2];  // Branch label
-            
-                int rs1_val, rs2_val;
-            
-                // **Handle CID-dependent branch**
-                if (rs1_str == "cid") {  
-                    std::cout << "Instruction is core-dependent\n";
-                    std::cout << "Checking branch at Core " << core_id << ", CID value: " << cid_val << std::endl;
-            
-                    // **Only the correct core should take the branch**
-                    if (core_id == cid_val) {  
-                        if (label_map.find(target_label) != label_map.end()) {
-                            int new_pc = label_map[target_label][core_id];
-                            std::cout << "[Core " << core_id << "] Branch Taken! Jumping to " 
-                                      << target_label << " at index " << new_pc << std::endl;
-                            global_pc = new_pc;
-                            pipeline.ID_EX.valid_instruction = false;  // Invalidate instruction after branch
-                        } else {
-                            std::cerr << "[ERROR] Label " << target_label << " not found!\n";
-                            exit(EXIT_FAILURE);
-                        }
-                    } else {
-                        std::cout << "[Core " << core_id << "] Ignoring core-dependent branch.\n";
-                    }
-                }
-            
-                // **Handle normal BNE X, Y, label**
-                else {
-                   
-                    std::cout << "[Core " << core_id << "] Checking BNE: " << rs1_val << " != " << rs2_val << std::endl;
-            
-                    if (rs1_val == rs2_val) {
-                        if (label_map.find(target_label) != label_map.end()) {
-                            int new_pc = label_map[target_label][core_id];
-                            std::cout << "[Core " << core_id << "] Branch Taken! Jumping to " 
-                                      << target_label << " at index " << new_pc << std::endl;
-                            global_pc = new_pc;
-                            pipeline.ID_EX.valid_instruction = false;
-                        } else {
-                            std::cerr << "[ERROR] Label " << target_label << " not found!\n";
-                            exit(EXIT_FAILURE);
-                        }
-                    } else {
-                        std::cout << "[Core " << core_id << "] Branch not taken, continuing execution.\n";
-                    }
-                }
-            }           
             else if (instr == "blt") {
-                cout<<"checking if "<< rs1_val << "<" << rs2_val <<endl;
                 if (rs1_val < rs2_val) {
                     std::string target_label = pipeline.EX_MEM.args[2];
                     if (label_map.find(target_label) != label_map.end()) {
                         int new_pc = label_map[target_label][core_id];
-                        std::cout << "[Core " << core_id << "] Branch Taken! Jumping to " 
-                                  << target_label << " at index " << new_pc << std::endl;
                         global_pc = new_pc ; // Adjust for fetch increment
                         pipeline.ID_EX.valid_instruction=false;
 
@@ -971,16 +747,11 @@ public:
                         exit(EXIT_FAILURE);
                     }
                 }
-                else {
-                    cout<<"Branch not taken contiinuing with: "<< pipeline.ID_EX.instruction << endl;
-                }
             } 
             else if(instr== "j"){
                 std::string target_label = pipeline.EX_MEM.args[0];
                 if (label_map.find(target_label) != label_map.end()) {
                     int new_pc = label_map[target_label][core_id];
-                    std::cout << "[Core " << core_id << "] Branch Taken! Jumping to " 
-                              << target_label << " at index " << new_pc << std::endl;
                     global_pc = new_pc ; // Adjust for fetch increment
                     pipeline.ID_EX.valid_instruction=false;
 
@@ -993,8 +764,6 @@ public:
                 std::string target_label = pipeline.EX_MEM.args[2];
                     if (label_map.find(target_label) != label_map.end()) {
                         int new_pc = label_map[target_label][core_id];
-                        std::cout << "[Core " << core_id << "] Branch Taken! Jumping to " 
-                                  << target_label << " at index " << new_pc << std::endl;
                         global_pc = new_pc ; // Adjust for fetch increment
                         pipeline.ID_EX.valid_instruction=false;
 
@@ -1007,12 +776,9 @@ public:
                 pipeline.EX_MEM.rd_value = pipeline.EX_MEM.offset;
             } else if (instr == "la") {  
                 pipeline.EX_MEM.rd= getRegisterIndex(args[0]);
-                
                 pipeline.EX_MEM.rd_value= label_map[args[1]][core_id];  
-                cout<<"rd value:"<<pipeline.EX_MEM.rd_value<<endl;         
             }else if (instr == "ecall") {
                 if (registers[17] == 10) {
-                    std::cout << "[Core " << core_id << "] Exit syscall detected. Terminating program.\n";
                     exit(0);
                 }
             }
@@ -1025,7 +791,6 @@ public:
         
         
         latest_ex_result = pipeline.EX_MEM.rd_value;
-        cout << "Latest_ex_rd_value:"<<pipeline.EX_MEM.rd_value<<endl;
         pipeline.EX_MEM.valid_data = true;
     }
 
@@ -1039,74 +804,67 @@ public:
             pipeline.MEM_WB.valid_instruction=false;
             return ;
         }
-        if(pipeline.MEM_WB.high_memory_latency == true){
-            if (pipeline.MEM_WB.memory_latency == main_memory_latency) {
-                std::cout << "[Core " << core_id << "] Memory stage for instruction: " << pipeline.MEM_WB.instruction 
-                          << ")............. \n";
-            }
-            else{
-                std::cout << "[Core " << core_id << "] Memory stage for instruction: " << pipeline.MEM_WB.instruction 
-                << " (cycle:" << pipeline.MEM_WB.memory_latency << ") \n";
-                return ;
+
+        auto &instr = pipeline.MEM_WB.instruction;
+
+        // Perform the memory access exactly once, on the first cycle the
+        // instruction spends in the MEM stage. The access resolves the real
+        // latency (L1 hit / L2 hit / main-memory miss), which then drives the
+        // stall countdown in Pipeline::shiftStages().
+        if (!pipeline.MEM_WB.mem_done) {
+            if (enable_forwarding == 0) {
+                pipeline.MEM_WB.rs1_value = registers[pipeline.MEM_WB.rs1];
+                if (instr == "lw" || instr == "lw_spm") {
+                    pipeline.MEM_WB.address = pipeline.MEM_WB.rs1_value + pipeline.MEM_WB.offset;
+                }
+                if (instr == "sw" || instr == "sw_spm") {
+                    pipeline.MEM_WB.rd_value = registers[pipeline.MEM_WB.rd];
+                    pipeline.MEM_WB.address = pipeline.MEM_WB.rd_value + pipeline.MEM_WB.offset;
+                }
             }
 
-        }
-
-        if(enable_forwarding==0){
-            pipeline.MEM_WB.rs1_value= registers[pipeline.MEM_WB.rs1];
-            if(pipeline.MEM_WB.instruction == "lw"|| pipeline.MEM_WB.instruction == "lw_spm"){
-                pipeline.MEM_WB.address=pipeline.MEM_WB.rs1_value + pipeline.MEM_WB.offset;
-                main_memory_latency=memory_latency;
-       
-            }
-            if(pipeline.MEM_WB.instruction == "sw"|| pipeline.MEM_WB.instruction == "sw_spm"){
-                pipeline.MEM_WB.rd_value = registers[pipeline.MEM_WB.rd];
-                pipeline.MEM_WB.address=pipeline.MEM_WB.rd_value + pipeline.MEM_WB.offset;
-            }
-            
-        }
-        std::cout << "[Core " << core_id << "] Memory stage for instruction: " << pipeline.MEM_WB.instruction << "\n";
-            auto &instr = pipeline.MEM_WB.instruction;
             if (instr == "lw") {
                 memory_accesses++;
-                cout<< "address: " << pipeline.MEM_WB.address<< " offset: " << pipeline.MEM_WB.offset << endl;
-                pipeline.MEM_WB.rd_value = lw(pipeline.MEM_WB.address,core_id);
-                pipeline.MEM_WB.memory_latency=memory_latency;
+                pipeline.MEM_WB.rd_value = lw(pipeline.MEM_WB.address, core_id);
+                pipeline.MEM_WB.memory_latency = memory_latency;
             } else if (instr == "sw") {
                 memory_accesses++;
-                   if(pipeline.forwarding == 1){
+                if (pipeline.forwarding == 1) {
                     pipeline.MEM_WB.rs1_value = registers[pipeline.MEM_WB.rs1];
-                    cout<<"Value forwarded"<<pipeline.MEM_WB.rs1_value<<endl;
                     pipeline.forwarding = 0;
                 }
-                if(pipeline.forwarding == 2){
+                if (pipeline.forwarding == 2) {
                     pipeline.MEM_WB.rd_value = registers[pipeline.MEM_WB.rd];
                     pipeline.MEM_WB.address = pipeline.MEM_WB.rd_value + pipeline.MEM_WB.offset;
                     pipeline.forwarding = 0;
                 }
-                sw(pipeline.MEM_WB.address, pipeline.MEM_WB.rs1_value,core_id);
-            }
-            else if(instr == "sw_spm") {
-                if(pipeline.forwarding == 1){
+                sw(pipeline.MEM_WB.address, pipeline.MEM_WB.rs1_value, core_id);
+                pipeline.MEM_WB.memory_latency = memory_latency;
+            } else if (instr == "lw_spm") {
+                pipeline.MEM_WB.rd_value = spm.lw_spm(pipeline.MEM_WB.address);
+                pipeline.MEM_WB.memory_latency = spm.latency_sp;
+            } else if (instr == "sw_spm") {
+                if (pipeline.forwarding == 1) {
                     pipeline.MEM_WB.rs1_value = registers[pipeline.MEM_WB.rs1];
-                    cout<<"Value forwarded"<<pipeline.MEM_WB.rs1_value<<endl;
                     pipeline.forwarding = 0;
                 }
-                if(pipeline.forwarding == 2){
+                if (pipeline.forwarding == 2) {
                     pipeline.MEM_WB.rd_value = registers[pipeline.MEM_WB.rd];
                     pipeline.MEM_WB.address = pipeline.MEM_WB.rd_value + pipeline.MEM_WB.offset;
                     pipeline.forwarding = 0;
                 }
                 spm.sw_spm(pipeline.MEM_WB.address, pipeline.MEM_WB.rs1_value);
+                pipeline.MEM_WB.memory_latency = spm.latency_sp;
+            } else {
+                // Non-memory instructions do not stall the MEM stage.
+                pipeline.MEM_WB.memory_latency = 1;
             }
-            else if (instr == "lw_spm") {
-                cout<< "address: " << pipeline.MEM_WB.address<< " offset: " << pipeline.MEM_WB.offset << endl;
-                pipeline.MEM_WB.rd_value = spm.lw_spm(pipeline.MEM_WB.address);
-            }
-            
-     pipeline.MEM_WB.valid_data = true;
 
-        
+            pipeline.MEM_WB.high_memory_latency = (pipeline.MEM_WB.memory_latency > 1);
+            pipeline.MEM_WB.mem_done = true;
+        }
+
+        pipeline.MEM_WB.valid_data = true;
     }
 
     void writeBack() {
@@ -1123,13 +881,7 @@ public:
 
             if (instr == "add" || instr == "sub" || instr == "addi" || instr == "slli" || instr == "lw" || instr == "li" || instr == "la"|| instr=="mul"||instr == "and"||instr=="srli"||instr == "and"||instr=="or"||instr=="xor") {
                 registers[getRegisterIndex(args[0])] = pipeline.WB_Return.rd_value;
-                std::cout << "[Core " << core_id << "]  Write Back: " << instr 
-                << " | x" << pipeline.WB_Return.rd 
-                << " = " << pipeline.WB_Return.rd_value << "\n";   
             }
-           
-
-            std::cout << "[Core " << core_id << "] Write back for instruction: " << instr << "\n";
         pipeline.WB_Return.valid_data = true;
         number_instructions++;
     }
